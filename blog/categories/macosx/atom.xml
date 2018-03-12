@@ -1,0 +1,458 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Macosx | re:inventing the wheel]]></title>
+  <link href="http://marmotte.pyrites.jp/blog/categories/macosx/atom.xml" rel="self"/>
+  <link href="http://marmotte.pyrites.jp/"/>
+  <updated>2018-03-12T12:29:41+09:00</updated>
+  <id>http://marmotte.pyrites.jp/</id>
+  <author>
+    <name><![CDATA[Yosuke Yamamoto]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[MarkdownのファイルをWord書類に変換する]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/02/06/convert-markdown-to-word-document/"/>
+    <updated>2015-02-06T20:11:44+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/02/06/convert-markdown-to-word-document</id>
+    <content type="html"><![CDATA[<p>markdownに一度慣れてしまうと、レイアウトなどをあまり気にせずに文書を作成できるため
+非常に便利なのですが、印刷や文書共有についてはOffice製品に比べると汎用性に欠けてしまいます。</p>
+
+<!-- more -->
+
+
+<p>Pandocを利用すると、Word書類(docx)などに変換できるため大変便利です。</p>
+
+<h2>MacOSXへインストール</h2>
+
+<p>pandocは、Haskell Cabalにパッケージが登録されていますので、Cabalをインストールします。</p>
+
+<pre><code>$ brew install ghc cabal-install
+</code></pre>
+
+<p>続いて、cabalからpandocsをインストールします。</p>
+
+<pre><code>$ cabal update
+$ cabal install pandoc
+</code></pre>
+
+<p>バイナリーが<code>$HOME/.calbal/bin</code>にインストールされるのでPATHを通します。</p>
+
+<pre><code>export PATH=$PATH:$HOME/.cabal/bin
+</code></pre>
+
+<h2>markdownファイルをWard書類(docx)に変換する。</h2>
+
+<p>下記のコマンドでファイルを変換できます。</p>
+
+<pre><code>$ pandoc &lt;path-to-markdown&gt; -t docx -o &lt;path-to-docx&gt;
+</code></pre>
+
+<hr />
+
+<p>ユーザーズガイドをみると色々できそうですが、今回はこのくらいにしておきたいと思います。</p>
+
+<h3>参考リンク</h3>
+
+<ul>
+<li><a href="http://qiita.com/enten0213/items/f67f5601cbed6ef86b3c">MarkdownをWord形式(docx)に変換する</a></li>
+<li><a href="http://sky-y.github.io/site-pandoc-jp/users-guide/">Pandoc ユーザーズガイド 日本語版</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Homebrewでパッケージのバージョンを切り替える]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/01/14/version-specified-in-the-homebrew/"/>
+    <updated>2015-01-14T11:13:22+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/01/14/version-specified-in-the-homebrew</id>
+    <content type="html"><![CDATA[<p><a href="http://marmotte.pyrites.jp/blog/2015/01/13/docker-on-centos7/">前回の記事</a>でdockerをCentOS7にインストールしてみましたが、先述のとおりdockerのバージョンは最新ではありませんでした。
+しかし、順当に<code>brew update</code>を行なっていくと最新バージョンになってしまい、docker AIPのバージョン差でリモートからコントロールできません。</p>
+
+<p>そこで今回は、homebrewでインストールパッケージのバージョン管理について調べてみました。</p>
+
+<!-- more -->
+
+
+<h2>インストール済みの旧バージョンへ切り替える。</h2>
+
+<p>過去にインストールした旧バージョンがある場合、<code>brew switch</code>コマンドでバージョン指定することができます。</p>
+
+<p>まずは、<code>brew info</code>を使ってインストール済みのバージョンを確認します。</p>
+
+<pre><code>$ brew info docker
+docker: stable 1.4.1 (bottled)
+https://www.docker.com/
+/usr/local/Cellar/docker/1.1.1 (9 files, 9.8M)
+Poured from bottle
+/usr/local/Cellar/docker/1.1.2 (9 files, 9.8M)
+Poured from bottle
+/usr/local/Cellar/docker/1.2.0 (9 files, 6.6M)
+Poured from bottle
+/usr/local/Cellar/docker/1.3.0 (9 files, 6.8M)
+Built from source
+/usr/local/Cellar/docker/1.3.1 (9 files, 6.8M)
+Poured from bottle
+/usr/local/Cellar/docker/1.3.2 (9 files, 6.9M)
+Poured from bottle
+/usr/local/Cellar/docker/1.4.1 (9 files, 7.0M) *
+Poured from bottle
+From: https://github.com/Homebrew/homebrew/blob/master/Library/Formula/docker.rb
+==&gt; Dependencies
+Build: go ✘
+==&gt; Options
+--without-completions
+Disable bash/zsh completions
+==&gt; Caveats
+Bash completion has been installed to:
+/usr/local/etc/bash_completion.d
+
+zsh completion has been installed to:
+/usr/local/share/zsh/site-functions
+</code></pre>
+
+<p>切り替えたいバージョンがインストール済みであれば、下記のようにしてバージョンを切り替えます。</p>
+
+<pre><code>$ # ここでは、現在のdocker clientのバージョンを確認
+$ docker -v
+Docker version 1.4.1, build 5bc2ff8
+$
+$ # docker clientのバージョンを1.3.2に切り替える
+$ brew switch docker 1.3.2
+Cleaning /usr/local/Cellar/docker/1.1.1
+Cleaning /usr/local/Cellar/docker/1.1.2
+Cleaning /usr/local/Cellar/docker/1.2.0
+Cleaning /usr/local/Cellar/docker/1.3.0
+Cleaning /usr/local/Cellar/docker/1.3.1
+Cleaning /usr/local/Cellar/docker/1.3.2
+Cleaning /usr/local/Cellar/docker/1.4.1
+3 links created for /usr/local/Cellar/docker/1.3.2
+$
+$ # dockerのバージョンが切り替わったことを確認する。
+$ docker -v
+Docker version 1.3.2, build 39fa2fa
+</code></pre>
+
+<h2>インストールされていない旧バージョンをインストールする。</h2>
+
+<p>上記の操作では旧バージョンがインストールされていることが前提となりますが、いつでも都合よく
+旧バージョンがインストールされているとは限りません。<br/>
+以前は<code>brew versions</code>というコマンドが存在していたのですが、無くなってしまったため<code>homebrew/boneyard</code>を
+tapすることで復活(?)します。</p>
+
+<pre><code>$ brew tap homebrew/boneyard
+</code></pre>
+
+<p>homebrew/boneyardをtapすると、以下のように<code>brew versions &lt;パッケージ名&gt;</code>でバージョン一覧が取得できます。<br/>
+※以前、golang 1.2をインストールした際に<code>homebrew/versions</code>をtapしたのでWarningが出ています。</p>
+
+<pre><code>$ brew versions docker
+Warning: brew-versions is unsupported and will be removed soon.
+You should use the homebrew-versions tap instead:
+https://github.com/Homebrew/homebrew-versions
+
+1.4.1    git checkout fc4e7d2 /usr/local/Library/Formula/docker.rb
+1.3.3    git checkout 21e59c6 /usr/local/Library/Formula/docker.rb
+1.3.2    git checkout b11f75b /usr/local/Library/Formula/docker.rb
+1.3.1    git checkout f25ec40 /usr/local/Library/Formula/docker.rb
+1.3.0    git checkout c42188e /usr/local/Library/Formula/docker.rb
+1.2.0    git checkout 9ccfc7e /usr/local/Library/Formula/docker.rb
+1.1.2    git checkout c6e04e3 /usr/local/Library/Formula/docker.rb
+1.1.1    git checkout 68c6b1e /usr/local/Library/Formula/docker.rb
+1.1.0    git checkout 3db0658 /usr/local/Library/Formula/docker.rb
+1.0.1    git checkout 7666e02 /usr/local/Library/Formula/docker.rb
+1.0.0    git checkout c513c42 /usr/local/Library/Formula/docker.rb
+0.11.1   git checkout eefa235 /usr/local/Library/Formula/docker.rb
+0.11.0   git checkout f4560d2 /usr/local/Library/Formula/docker.rb
+0.10.0   git checkout c26c37d /usr/local/Library/Formula/docker.rb
+0.9.1    git checkout 6bd6532 /usr/local/Library/Formula/docker.rb
+0.9.0    git checkout a90b40e /usr/local/Library/Formula/docker.rb
+0.8.1    git checkout 4ee0389 /usr/local/Library/Formula/docker.rb
+0.8.0    git checkout 9880ace /usr/local/Library/Formula/docker.rb
+</code></pre>
+
+<p>指定のバージョンをインストールします。(ここでは、1.3.2を指定する例です)</p>
+
+<pre><code>$ cd /usr/local
+$ brew unlink docker # すでに別バージョンがインストールされている場合unlinkする
+$ git checkout b11f75b /usr/local/Library/Formula/docker.rb
+$ brew install docker
+</code></pre>
+
+<hr />
+
+<p>以上です。</p>
+
+<h3>参考</h3>
+
+<ul>
+<li><a href="http://qiita.com/xxthermidorxx/items/91a7c502d33e0dde72ad">Homebrewでformulaを特定のバージョンに切り替える方法まとめ</a></li>
+<li><a href="http://qiita.com/ryam/items/066818fd149e68a98797">Homebrewで古いバージョンのアプリケーションをインストールする</a></li>
+<li><a href="http://marutanm.github.io/blog/2012/02/01/homebrew-switch-formula-version/">Homebrewで複数versionはいってるformulaをきりかえるには</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[MacOSX上でISOファイルからインストールUSBディスクを作る]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/01/04/create-bootable-usb-from-iso-file/"/>
+    <updated>2015-01-04T20:40:39+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/01/04/create-bootable-usb-from-iso-file</id>
+    <content type="html"><![CDATA[<p>久しぶりにCentOSを物理マシンにインストールしようと思ったので、BootableUSBを作成しました。
+毎度、「MacOSX(今回はYosemite)でどう作るんだっけ？」とググる自分に嫌気を覚えたのでメモ。</p>
+
+<h2>2018/3/12追記</h2>
+
+<p>記事を書いてから大分時間が経過したことと、ドメイン廃止に伴い新しくブログを立ち上げました。
+<code>/dev/rdiskX</code>との速度比較も追記しましたので<a href="http://blog.eksy.tokyo/post/create-bootable-usb-from-iso-file/">新サイトの記事</a>をご覧ください。</p>
+
+<!-- more -->
+
+
+<hr />
+
+<h3>用意するもの</h3>
+
+<ul>
+<li>インストールメディアのISOファイル</li>
+<li>ISOファイルのサイズ以上の容量があるUSBメモリ</li>
+<li>Macのターミナルアプリ</li>
+</ul>
+
+
+<h3>USBを初期化する</h3>
+
+<p>USBメモリをMacに接続しフォーマットします。&#8221;ディスクユーティリテ&#8221;アプリから行ってもいいのですが、
+スクリーンショットを取るのがめんどくさかったので今回はコマンドラインから操作しました。</p>
+
+<p><strong>デバイス名を確認します。</strong><br/>
+私の環境では、以下のように表示され、<code>/dev/disk2</code>というのがわかりました。<br/>
+※私はディスク容量などで判断していますが、USBをさす前・さした後の差分で確認する方法もあります。</p>
+
+<pre><code>$ diskutil list
+/dev/disk0
+#:                       TYPE NAME                    SIZE       IDENTIFIER
+0:      GUID_partition_scheme                        *251.0 GB   disk0
+1:                        EFI EFI                     209.7 MB   disk0s1
+2:          Apple_CoreStorage                         250.1 GB   disk0s2
+3:                 Apple_Boot Recovery HD             650.0 MB   disk0s3
+/dev/disk1
+#:                       TYPE NAME                    SIZE       IDENTIFIER
+0:                  Apple_HFS Macintosh HD           *249.8 GB   disk1
+Logical Volume on disk0s2
+03010883-5866-4002-BDA4-FF6EDA3E4A96
+Unlocked Encrypted
+/dev/disk2
+#:                       TYPE NAME                    SIZE       IDENTIFIER
+0:      GUID_partition_scheme                        *15.6 GB    disk2
+1:                        EFI EFI                     209.7 MB   disk2s1
+2:       Microsoft Basic Data UNTITLED                15.4 GB    disk2s2
+</code></pre>
+
+<p><strong>MS-DOS(FAT)形式で対象(<code>/dev/disk2</code>)を初期化します。</strong></p>
+
+<pre><code>$ diskutil eraseDisk MS-DOS UNTITLED /dev/disk2
+</code></pre>
+
+<h3>ISOファイルの書き込み</h3>
+
+<p>ddコマンドを利用してISOイメージをUSBに書き込むわけですが、USBをフォーマットした状態では
+Finder上でマウントされたままなので以下のコマンドでアンマウントします。</p>
+
+<pre><code>$ diskutil unmountDisk /dev/disk2
+Unmount of all volumes on disk2 was successful
+</code></pre>
+
+<p>ddコマンドでISOファイルを書き込みます。なおデバイスファイル(/dev/diskN)は一般ユーザでのアクセス権がないため<code>sudo</code>が必要です。
+<code>
+$ sudo dd if=./CentOS-6.5-x86_64-minimal.iso of=/dev/disk2 bs=4028
+</code></p>
+
+<h3>USBメモリを取り外す</h3>
+
+<p>ddの実行にはしばらくかかります。気長に待ちましょう。<br/>
+USBメモリへ書き込みが完了したら、以下のコマンドで取り外せる状態にします。</p>
+
+<pre><code>$ diskutil eject /dev/disk2
+</code></pre>
+
+<p>念のため、<code>diskutl list</code>を確認しましょう。<code>/dev/disk2</code>のエントリーがなくなっているはずです。</p>
+
+<hr />
+
+<p>以上で、BootableUSBの作成は完了です。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Vagrant 1.7.1導入したら若干不具合が発生したのでメモ]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/01/03/the-problems-caused-by-updates-to-vagrant1-dot-7-1/"/>
+    <updated>2015-01-03T17:43:55+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/01/03/the-problems-caused-by-updates-to-vagrant1-dot-7-1</id>
+    <content type="html"><![CDATA[<p>気がつけばVagrantのStableが1.7.1になっていたので導入してみたのですが、自分にとって若干不具合があったので
+対策をメモしておきます。</p>
+
+<!-- more -->
+
+
+<h3>sshコマンドでVagrantBoxに接続できない</h3>
+
+<p>chef-soloの動作確認などのために、<code>vagrant ssh</code>だけではなく普通のsshコマンドで接続できるよう<code>$HOME/.ssh/config</code>に下記のような設定を記述していたのですが、
+アップデートによりIdentityFileで接続できなくなってしまいました。</p>
+
+<pre><code>Host vagrant
+Hostname        192.168.33.10
+User            vagrant
+IdentityFile    ~/.vagrant.d/insecure_private_key
+StrictHostKeyChecking no
+</code></pre>
+
+<p>これまでは、IdentityFileを指定しているので鍵交換方式で接続できたのですが、以下のようにPasswordを求められるようになってしまいました。<br/>
+ちなみに、<code>vagrant ssh</code>では問題なく接続できます。</p>
+
+<pre><code>$ vagrant up
+$ ssh vagrant
+Password:
+</code></pre>
+
+<p>原因は、1.7よりデフォルトで$HOME/.vagrant.d/insecure_private_key を参照しなくなったようです。<code>vagrant ssh-config</code>コマンドで確認すると、Vagrantfileと同一ディレクトリに.vagrant/machines/default/virtualbox/private_keyとして自動生成されていました。</p>
+
+<p>対策としては、<code>Vagrantfile</code>に以下の設定を追加することで回避できます。</p>
+
+<pre><code>config.ssh.insert_key = false
+</code></pre>
+
+<p>参考：<a href="https://github.com/geerlingguy/ansible-for-devops/issues/7">https://github.com/geerlingguy/ansible-for-devops/issues/7</a></p>
+
+<h3>自作VagrantBox作成時にpackageでこける</h3>
+
+<p>VagrantBoxを作成すべく<code>vagrant package</code>コマンドを実行すると、下記のようなargumentsエラーが発生しました。</p>
+
+<pre><code>$ vagrant package --base vagrant-centos7
+/opt/vagrant/embedded/gems/gems/vagrant-1.7.1/lib/vagrant/machine.rb:153:in `action': wrong number of arguments (2 for 1) (ArgumentError)
+from /opt/vagrant/embedded/gems/gems/vagrant-1.7.1/plugins/commands/package/command.rb:83:in `package_vm'
+from /opt/vagrant/embedded/gems/gems/vagrant-1.7.1/plugins/commands/package/command.rb:66:in `package_base'
+from /opt/vagrant/embedded/gems/gems/vagrant-1.7.1/plugins/commands/package/command.rb:42:in `execute'
+from /opt/vagrant/embedded/gems/gems/vagrant-1.7.1/lib/vagrant/cli.rb:42:in `execute'
+from /opt/vagrant/embedded/gems/gems/vagrant-1.7.1/lib/vagrant/environment.rb:301:in `cli'
+from /opt/vagrant/bin/../embedded/gems/gems/vagrant-1.7.1/bin/vagrant:174:in `&lt;main&gt;'
+</code></pre>
+
+<p>対策としては、<code>/opt/vagrant/embedded/gems/gems/vagrant-1.7.1/lib/vagrant/machine.rb</code>の153行目を以下のように修正します。</p>
+
+<pre><code>-     def action(name, **opts)
++     def action(name, opts)
+</code></pre>
+
+<p>参考：<a href="https://github.com/mitchellh/vagrant/issues/4962">https://github.com/mitchellh/vagrant/issues/4962</a></p>
+
+<hr />
+
+<p>以上、1.7.1へバージョンアップしたら(今の所)出くわした問題と対処方法でした。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[MacOSX YosemiteでIntelliJとGoLang Pluginを利用する]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/01/02/idea-and-golang-on-yosemite/"/>
+    <updated>2015-01-02T12:29:54+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/01/02/idea-and-golang-on-yosemite</id>
+    <content type="html"><![CDATA[<p>Yosemiteから<code>/etc/launchd.conf</code>でグローバルな環境変数が設定できなくなり、
+IntelliJ(以下IDEA)でGoプロジェクトを開く(作成する)度に警告メッセージが表示されるようになったので試行錯誤してみました。</p>
+
+<!-- more -->
+
+
+<ul>
+<li><p>Event Logにも下記のようなメッセージが出力されます。</p>
+
+<pre><code>Problem with env variables
+GOROOT environment variable is empty or could not be detected properly.
+This means that some tools like go run or go fmt might not run properly.
+See instructions on how to fix this. (show balloon)
+
+Problem with env variables
+GOPATH environment variable is empty or could not be detected properly.
+This means that some tools like go run or go fmt might not run properly.
+See instructions on how to fix this. (show balloon)
+</code></pre></li>
+</ul>
+
+
+<h3>結論から</h3>
+
+<p>まず結論から言うと、警告(Problem)メッセージは無視しても問題なく動作しました。  気持ち悪いですが、今はGo言語の学習が目的なのでとりあえず目を瞑ろうかと。。。</p>
+
+<p>というと、ネタにならないので試行錯誤した内容を書き添えていきたいと思います。</p>
+
+<h3>launchdによるグローバル環境変数の設定について</h3>
+
+<p>Mavericksのころは、警告メッセージの &ldquo;See <a href="https://github.com/go-lang-plugin-org/go-lang-idea-plugin/blob/master/Missing%20ENV.md">instructions</a> on how to fix this.&rdquo; に説明されている通り <code>/etc/launchd.conf</code> に以下の記述を追記することでMacの起動時にグローバル変数が設定され解決できました。</p>
+
+<pre><code>setenv GOROOT /usr/local/opt/go/libexec
+setenv GOPATH $HOME/.go
+</code></pre>
+
+<p>また、下記のコマンドをターミナルから実行することで、launchdで値が設定されていることを確認できます。</p>
+
+<pre><code>$ sudo launchctl getenv GOROOT
+/usr/local/opt/go/libexec
+$ sudo launchctl getenv GOPATH
+/User/yosuke/.go
+</code></pre>
+
+<p>しかし、Yosemiteにアップデートしてからは、<code>launchctl getenv</code>の出力が空になりグローバル変数が設定されていません。<br/>
+そこで、ターミナルから下記コマンド実行し手動設定を行ってみました。が、結果は変わらず。。。</p>
+
+<pre><code>$ sudo launchctl setenv GOROOT $GOROOT
+$ sudo launchctl setenv GOPATH $GOPATH
+</code></pre>
+
+<p>※事前に、.bash_profileでGOROOT/GOPATHが設定されていることが前提。
+詳細は<a href="https://golang.org/doc/install#install">Install the Go tools</a>を参照。</p>
+
+<p>ただし、新規にGo言語プロジェクトを作成した際にlaunchctlでGOROOT/GOPATHを指定しておくと、
+&ldquo;Tools&rdquo;->&ldquo;Go Tools&rdquo;->&ldquo;go plugin Debug internals&rdquo;->&ldquo;go env&#8221;でgo envの出力を表示することができました。(設定しない場合でも一度コードを実行すると同じ状態になるので問題ありませんでした。)</p>
+
+<h3>試行錯誤中に&#8221;brew upgrade&#8221;しちゃったら&hellip;</h3>
+
+<p>試行錯誤中に、brew updateをしてみたらGo言語の最新版1.4があったのでupgradeしてみました(それまでは1.3系)。
+結果としては、Goプロジェクトを作成する際に、Go SDKが選択できなくなりました。<br/>
+Go language support plugin(Ver 0.9.15.3)のRelease Noteをよく読むと、Go SDK (Go 1.2 on linux/mac/windows)と記載されています。
+もちろん、可能性を考慮して1.2を導入し直しましたが変化なし。</p>
+
+<p>なお、インストールは下記のように行いました。</p>
+
+<pre><code>$ brew tap homebrew/versions
+$ brew install go12
+</code></pre>
+
+<p>.bash_profileを以下のように設定</p>
+
+<pre><code>## go lang Setting
+if [ -x "`which go`" ]; then
+  export GOROOT=/usr/local/opt/go12/libexec
+  export GOPATH=$HOME/.go
+  export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+fi
+</code></pre>
+
+<p>一応現在はgo1.2を利用しています。</p>
+
+<hr />
+
+<p>私の場合、メインの開発環境がIDEA(主にchef cookbookの作成に使用)なのでGo言語の開発環境にも利用しみましたが、
+今回色々調べてみてみると、IDEA+Go言語というのはそれなりに定評があるようです。実際、私も(警告が出る以外は)心地よく利用しています。</p>
+
+<p>YosemiteのJRE問題でIDEAが正規の状態で動作しないとか、&#8221;Go language support plugin&#8221;がメジャーリリースされていないとか。
+諸所の問題ひっくるめて今回のトラブルシュートは諦めることにしました。折を見て再チャレンジしてみようとは思います。<br/>
+※当初はIDEA13の結果のみで書こうと思いましたが、IDEA14にアップデートしても同様となりました。</p>
+]]></content>
+  </entry>
+  
+</feed>

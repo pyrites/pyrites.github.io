@@ -1,0 +1,570 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>CentOS7のDocker Imageを自作する - re:inventing the wheel</title>
+  <meta name="author" content="Yosuke Yamamoto">
+
+  
+  <meta name="description" content="CentOS7のDockerImageを自作する">
+  <meta name="keywords" content="Docker, CentOS7, 自作イメージ">
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://marmotte.pyrites.jp/blog/2015/01/15/create-docker-image-of-centos7">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="re:inventing the wheel" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-58161548-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">re:inventing the wheel</a></h1>
+  
+    <h2>それでも車輪は回っている</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:marmotte.pyrites.jp" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <div class="sharing">
+  <a href="http://b.hatena.ne.jp/entry/http://marmotte.pyrites.jp/blog/2015/01/15/create-docker-image-of-centos7/" class="hatena-bookmark-button" data-hatena-bookmark-layout="standard" title="このエントリーをはてなブックマークに追加"><img src="http://b.st-hatena.com/images/entry-button/button-only.gif" alt="このエントリーをはてなブックマークに追加" width="20" height="20" style="border: none;" /></a><script type="text/javascript" src="http://b.st-hatena.com/js/bookmark_button.js" charset="utf-8" async="async"></script>
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://marmotte.pyrites.jp/blog/2015/01/15/create-docker-image-of-centos7/" data-via="marmotte_se30" data-counturl="http://marmotte.pyrites.jp/blog/2015/01/15/create-docker-image-of-centos7/" >Tweet</a>
+  
+  
+  <div class="g-plusone" data-size="medium"></div>
+  
+  
+  <div class="fb-like" data-send="true" data-width="450" data-show-faces="false"></div>
+  
+</div>
+
+  
+  
+  <header>
+    
+      <h1 class="entry-title">CentOS7のDocker Imageを自作する</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2015-01-15T13:25:13+09:00'><span class='date'><span class='date-month'>Jan</span> <span class='date-day'>15</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>1:25 pm</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>これまでCentOSでdockerイメージをを自作する際は、febootstrapというコマンドを利用していましたが、
+CentOS7ではepelからもパッケージがなくなっていたので調べてみました。</p>
+
+<!-- more -->
+
+
+<h2>febootstrapからsuperminに変更された</h2>
+
+<p>背景までは調べていませんが、<a href="http://people.redhat.com/~rjones/supermin/">このページ</a>を見ると
+febootstrapはsuperminに変わったようです。</p>
+
+<blockquote><p>This tool was formerly known as febootstrap.</p></blockquote>
+
+<h2>CentOS7にsuperminをインストールする</h2>
+
+<p><a href="http://qiita.com/tukiyo3/items/7a5fe5a13d98740db1eb">参考にしたページ</a>にも書いてありますが、
+yumのパッケージはバージョンが古いためソースから5.1.11をインストールしました。<br/>
+※yumでは4.14でオプションがかなり異なります。</p>
+
+<p>先ずはREADMEに従い、コンパイルに必要な環境をパッケージからインストールします。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># yum install gcc gawk ocaml ocaml-findlib perl-Pod-Perldoc e2fsprogs e2fsprogs-devel e2fsprogs-libs e2fsprogs-static glibc-static yum-utils rpm-devel</span></code></pre></td></tr></table></div></figure>
+
+
+<p>なお、READMEには記載されていませんでしたが、RPM系の環境用にコンパイルする場合、<code>rpm-devel</code>を
+インストールしておかないと<code>supermin --prepare</code>時に以下のエラーメッセージで処理が止まってしまいます。</p>
+
+<ul>
+<li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=1082044">CentOS 6.4: Supermin fails to detect RPM based distro</a></li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># /usr/local/bin/supermin --prepare yum -o supermin.d
+</span><span class='line'>supermin: could not detect package manager used by this system or distro.
+</span><span class='line'>
+</span><span class='line'>If this is a new Linux distro, or not Linux, or a Linux distro that uses
+</span><span class='line'>an unusual packaging format then you may need to port supermin.  If
+</span><span class='line'>you are expecting that supermin should work on this system or distro
+</span><span class='line'>then it may be that the package detection code is not working.
+</span><span class='line'>
+</span><span class='line'>To list which package handlers are compiled into this version of
+</span><span class='line'>supermin, do:
+</span><span class='line'>
+</span><span class='line'>supermin --list-drivers</span></code></pre></td></tr></table></div></figure>
+
+
+<p>コンパイルとインストールは一般的ですが、以下の手順で行います。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># cd /usr/local/src
+</span><span class='line'># wget http://libguestfs.org/download/supermin/supermin-5.1.11.tar.gz
+</span><span class='line'># tar xvzf supermin-5.1.11.tar.gz
+</span><span class='line'># cd supermin-5.1.11
+</span><span class='line'># ./configure
+</span><span class='line'># make
+</span><span class='line'># make install</span></code></pre></td></tr></table></div></figure>
+
+
+<p>インストールが終わったら、念のため以下のコマンドを確認してください。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># /usr/local/bin/supermin --list-drivers
+</span><span class='line'>arch/pacman     not-detected
+</span><span class='line'>debian/dpkg     not-detected
+</span><span class='line'>mageia/rpm      not-detected
+</span><span class='line'>opensuse/rpm    not-detected
+</span><span class='line'>fedora/rpm      detected</span></code></pre></td></tr></table></div></figure>
+
+
+<p>出力に<code>fedora/rpm      detected</code>があれば大丈夫です。</p>
+
+<h2>CentOS7のDocker Imageの作成</h2>
+
+<p><a href="http://qiita.com/MiCHiLU/items/762275df727b60c3ff41">こちらの記事</a>を参考に、chrootイメージを作成します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># /usr/local/bin/supermin --prepare yum -o supermin.d
+</span><span class='line'># /usr/local/bin/supermin --build --format chroot supermin.d -o appliance.d</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># cd appliance.d
+</span><span class='line'># mv usr/share/locale/en usr/share/locale/en_US tmp
+</span><span class='line'># rm -rf usr/share/locale/*
+</span><span class='line'># mv tmp/en tmp/en_US usr/share/locale/
+</span><span class='line'># mv usr/share/i18n/locales/en_US tmp
+</span><span class='line'># rm -rf usr/share/i18n/locales/*
+</span><span class='line'># mv tmp/en_US usr/share/i18n/locales/
+</span><span class='line'># cd ..</span></code></pre></td></tr></table></div></figure>
+
+
+<p>上記で作成すると <code>$releasever</code> がうまく取得できず、yumが動かなかったのでもう一手間加えます。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># cd appliance.d
+</span><span class='line'># echo 7 &gt; etc/yum/vars/releasever
+</span><span class='line'># cd ..</span></code></pre></td></tr></table></div></figure>
+
+
+<p>dockerイメージにするため、tarで固めます。<br/>
+xz形式で圧縮するのが一般的なようなので、以下のようにします。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># tar --numeric-owner -Jcpf centos7-zero.tar.xz -C appliance.d .</span></code></pre></td></tr></table></div></figure>
+
+
+<p>今回利用した docker 1.3.2 では<code>docker import</code>に問題があるようなので圧縮なしで作成しました。</p>
+
+<ul>
+<li><a href="https://github.com/docker/docker/issues/9327">Docker load fails to load xz-compressed image #9327</a></li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># tar --numeric-owner -cpf centos7-zero.tar -C appliance.d .</span></code></pre></td></tr></table></div></figure>
+
+
+<p>ちなみに、1.3.2にインストールすると以下のエラーになります。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># cat centos7-zero.tar.xz | docker import - local/centos7-zero
+</span><span class='line'>2015/01/15 09:37:45 Error: ApplyLayer exit status 1 exec: "xz": executable file not found in $PATH</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>作成したイメージをdockerにインポートする</h2>
+
+<p>以下のコマンドで、docker imageとしてimportします。<br/>
+※本来であれば、xz形式でも<code>docker import</code>が解いてくれます。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># cat centos7-zero.tar | docker import - local/centos7-zero</span></code></pre></td></tr></table></div></figure>
+
+
+<p>以下のようにして、イメージが登録されたことを確認します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># docker images
+</span><span class='line'>REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+</span><span class='line'>local/centos7-zero   latest              cb1d0872e89a        45 minutes ago      136.4 MB</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>その他</h2>
+
+<p>上記手順で作成したイメージは大変シンプルでdocker向きですが、本当に何もパッケージが入っていないです。
+そこで、centosのオフィシャルイメージにインストールされていたパッケージから<code>supermin --prepare</code>を書いてみました。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># /usr/local/bin/supermin --prepare audit-libs basesystem bash binutils bzip2-libs ca-certificates centos-release chkconfig coreutils cpio cracklib cracklib-dicts curl cyrus-sasl-lib dbus-libs device-mapper device-mapper-libs diffutils elfutils-libelf expat fakesystemd file file-libs filesystem findutils gawk gdbm glib2 glibc glibc-common gmp gnupg2 gpgme grep groff-base gzip hardlink info iproute iptables iptables-services iputils keyutils-libs kmod-libs kpartx krb5-libs less libacl libassuan libattr libblkid libcap libcap-ng libcom_err libcroco libcurl libdb libdb-utils libffi libgcc libgcrypt libgomp libgpg-error libidn libmnl libmount libnetfilter_conntrack libnfnetlink libpwquality libselinux libsemanage libsepol libssh2 libstdc++ libtasn1 libunistring libuser libutempter libuuid libverto libxml2 lua ncurses ncurses-base ncurses-libs nspr nss nss-softokn nss-softokn-freebl nss-sysinit nss-tools nss-util openldap openssl-libs p11-kit p11-kit-trust pam pcre pinentry pkgconfig popt procps-ng pth pygpgme pyliblzma python python-iniparse python-libs python-pycurl python-urlgrabber pyxattr readline rootfiles rpm rpm-build-libs rpm-libs rpm-python sed setup shadow-utils shared-mime-info sqlite systemd-libs tzdata ustr util-linux vim-minimal which xz xz-libs yum yum-metadata-parser yum-plugin-fastestmirror zlib -o supermin.d</span></code></pre></td></tr></table></div></figure>
+
+
+<p>また、必要であればDockerfileを使って、Minimal Installしても良いと思います。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># CentOS7 Minimal Install Image
+</span><span class='line'>#
+</span><span class='line'># VERSION 20150115
+</span><span class='line'>
+</span><span class='line'>FROM       local/centos7-zero
+</span><span class='line'>MAINTAINER Yosuke Yamamoto
+</span><span class='line'>
+</span><span class='line'>RUN yum -y groupinstall "Minimal Install"; yum clean</span></code></pre></td></tr></table></div></figure>
+
+
+<p>この辺りは、使用場面によっても異なってくると思うので深く追求はしません。</p>
+
+<h3>参考</h3>
+
+<ul>
+<li><a href="http://qiita.com/hnakamur/items/8e3136488fcfe763802c">docker用にCentOS 6.5のbase imageを自作する</a></li>
+<li><a href="http://qiita.com/tukiyo3/items/7a5fe5a13d98740db1eb">supermin (febootstrap後継)</a></li>
+<li><a href="http://qiita.com/MiCHiLU/items/762275df727b60c3ff41">fedoraのDockerイメージを作成する</a></li>
+<li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=1082044">CentOS 6.4: Supermin fails to detect RPM based distro</a></li>
+<li><a href="https://github.com/docker/docker/issues/9327">Docker load fails to load xz-compressed image</a></li>
+</ul>
+
+
+<hr />
+
+<p>以上です。</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Yosuke Yamamoto</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2015-01-15T13:25:13+09:00'><span class='date'><span class='date-month'>Jan</span> <span class='date-day'>15</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>1:25 pm</span></time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/centos/'>centos</a>, <a class='category' href='/blog/categories/docker/'>docker</a>
+  
+</span>
+
+
+    </p>
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2015/01/14/version-specified-in-the-homebrew/" title="Previous Post: homebrewでパッケージのバージョンを切り替える">&laquo; homebrewでパッケージのバージョンを切り替える</a>
+      
+      
+        <a class="basic-alignment right" href="/blog/2015/02/06/convert-markdown-to-word-document/" title="Next Post: MarkdownのファイルをWord書類に変換する">MarkdownのファイルをWord書類に変換する &raquo;</a>
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    
+<section>
+  <!--
+  // Octopress custom aside 'gravatar.html'
+  // version: 1.0 (Dec 24, 2013)
+  // (c) alalwww [https://github.com/alalwww/gravatar-aside/]
+-->
+<h1>Author</h1>
+<div id="gravatar-aside-profile" style="clear:both">
+  <div style="height:2em"><span style="color:#ccc;font-size:small">loading profile from gravatar&#8230;</span></div>
+</div>
+<div style="clear:both"></div>
+<script type="text/javascript">
+$(function(){
+  var url = "http://www.gravatar.com/cdd605858f695128532412f701153985.json?callback=?";
+  var $box = $("#gravatar-aside-profile")
+  var $msg = $box.children().children()
+  var blink = function(a){a.fadeOut(400).fadeIn(400)};
+  var intervalID = window.setInterval(blink, 1500, $msg)
+  var setupProfile = function(data) {
+    var entry = data.entry[0]
+    $box
+    .empty()
+    .css("padding-top", 5)
+    .append($("<img>")
+    .attr("src", entry.thumbnailUrl)
+    .attr("alt", "thumbnail from Gravatar")
+    .css("float", "left")
+    .css("margin-right", 5)
+  )
+  .append($("<div>")
+  .css("padding", "5px 0px")
+  .append($("<h2>")
+  .css("margin-bottom", 5)
+  .append("<a href='" + entry.profileUrl + "'>" + entry.displayName + "</a>")
+)
+.append($("<div>")
+.css("clear", "both")
+.css("margin", 0)
+.css("font-size", "90%")
+.html(entry.aboutMe.replace(/\n/g, "<br/>"))
+)
+)
+}
+var clearInterval = function(){window.clearInterval(intervalID)}
+var updateMessageToError = function(){$msg.stop().fadeOut().text("profile load failed.").fadeIn()}
+jQuery.getJSON(url)
+.always(clearInterval)
+.done(setupProfile)
+.fail(updateMessageToError)
+})
+</script>
+</section>
+
+<section>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+  <!-- octppress a-side -->
+  <ins class="adsbygoogle"
+  style="display:inline-block;width:300px;height:250px"
+  data-ad-client="ca-pub-6654532477291148"
+  data-ad-slot="7834979110"></ins>
+  <script>
+    (adsbygoogle = window.adsbygoogle || []).push({});
+  </script>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2015/10/17/build-for-nginx-plus-lua/">Lua-nginx-module(ngx_lua)をインストールしてみた</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2015/10/06/webvirtmgr-in-raspberrypi/">(DIY)RaspbianにWebVirtMgrを入れてみた</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2015/02/23/setting-up-authentication-for-docker-registry/">docker-registryによるプライベートDockerリポジトリの作成</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2015/02/06/convert-markdown-to-word-document/">MarkdownのファイルをWord書類に変換する</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2015/01/15/create-docker-image-of-centos7/">CentOS7のDocker Imageを自作する</a>
+      </li>
+    
+  </ul>
+</section>
+<section>
+  <h1>Top Categories</h1>
+    <ul id="top-category-list"><li><a href='/blog/categories/macosx'>macosx (5)</a></li><li><a href='/blog/categories/centos'>centos (3)</a></li><li><a href='/blog/categories/docker'>docker (3)</a></li><li><a href='/blog/categories/octopress'>octopress (2)</a></li><li><a href='/blog/categories/sofalseta'>その他 (1)</a></li><li><a href='/blog/categories/diy'>diy (1)</a></li><li><a href='/blog/categories/kvm'>kvm (1)</a></li><li><a href='/blog/categories/vagrant'>vagrant (1)</a></li><li><a href='/blog/categories/nginx'>nginx (1)</a></li><li><a href='/blog/categories/idea'>idea (1)</a></li></ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/marmotte">@marmotte</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'marmotte',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+<section class="googleplus googleplus-hidden">
+  <h1>
+    <a href="https://plus.google.com/112708436664585883078?rel=author">
+      <img src="http://www.google.com/images/icons/ui/gprofile_button-32.png" width="32" height="32">
+      Google+
+    </a>
+  </h1>
+</section>
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2018 - Yosuke Yamamoto -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) {return;}
+  js = d.createElement(s); js.id = id; js.async = true;
+  js.src = "//connect.facebook.net/ja_JP/all.js#appId=212934732101925&xfbml=1";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+
+
+  <script type="text/javascript">
+    (function() {
+      var script = document.createElement('script'); script.type = 'text/javascript'; script.async = true;
+      script.src = 'https://apis.google.com/js/plusone.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(script, s);
+    })();
+  </script>
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: その他 | re:inventing the wheel]]></title>
+  <link href="http://marmotte.pyrites.jp/blog/categories/sofalseta/atom.xml" rel="self"/>
+  <link href="http://marmotte.pyrites.jp/"/>
+  <updated>2018-03-12T12:29:41+09:00</updated>
+  <id>http://marmotte.pyrites.jp/</id>
+  <author>
+    <name><![CDATA[Yosuke Yamamoto]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[MarkdownのファイルをWord書類に変換する]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/02/06/convert-markdown-to-word-document/"/>
+    <updated>2015-02-06T20:11:44+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/02/06/convert-markdown-to-word-document</id>
+    <content type="html"><![CDATA[<p>markdownに一度慣れてしまうと、レイアウトなどをあまり気にせずに文書を作成できるため
+非常に便利なのですが、印刷や文書共有についてはOffice製品に比べると汎用性に欠けてしまいます。</p>
+
+<!-- more -->
+
+
+<p>Pandocを利用すると、Word書類(docx)などに変換できるため大変便利です。</p>
+
+<h2>MacOSXへインストール</h2>
+
+<p>pandocは、Haskell Cabalにパッケージが登録されていますので、Cabalをインストールします。</p>
+
+<pre><code>$ brew install ghc cabal-install
+</code></pre>
+
+<p>続いて、cabalからpandocsをインストールします。</p>
+
+<pre><code>$ cabal update
+$ cabal install pandoc
+</code></pre>
+
+<p>バイナリーが<code>$HOME/.calbal/bin</code>にインストールされるのでPATHを通します。</p>
+
+<pre><code>export PATH=$PATH:$HOME/.cabal/bin
+</code></pre>
+
+<h2>markdownファイルをWard書類(docx)に変換する。</h2>
+
+<p>下記のコマンドでファイルを変換できます。</p>
+
+<pre><code>$ pandoc &lt;path-to-markdown&gt; -t docx -o &lt;path-to-docx&gt;
+</code></pre>
+
+<hr />
+
+<p>ユーザーズガイドをみると色々できそうですが、今回はこのくらいにしておきたいと思います。</p>
+
+<h3>参考リンク</h3>
+
+<ul>
+<li><a href="http://qiita.com/enten0213/items/f67f5601cbed6ef86b3c">MarkdownをWord形式(docx)に変換する</a></li>
+<li><a href="http://sky-y.github.io/site-pandoc-jp/users-guide/">Pandoc ユーザーズガイド 日本語版</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+</feed>

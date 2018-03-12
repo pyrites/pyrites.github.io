@@ -1,0 +1,1862 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[re:inventing the wheel]]></title>
+  <link href="http://marmotte.pyrites.jp/atom.xml" rel="self"/>
+  <link href="http://marmotte.pyrites.jp/"/>
+  <updated>2018-03-12T12:29:41+09:00</updated>
+  <id>http://marmotte.pyrites.jp/</id>
+  <author>
+    <name><![CDATA[Yosuke Yamamoto]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Lua-nginx-module(ngx_lua)をインストールしてみた]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/10/17/build-for-nginx-plus-lua/"/>
+    <updated>2015-10-17T19:06:27+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/10/17/build-for-nginx-plus-lua</id>
+    <content type="html"><![CDATA[<p>NGINXといえば軽量・高速なWebサーバですが、動的に設定反映できるリバプロはないかと探しているうちに
+<a href="http://www.slideshare.net/toshi_pp/devsummit2015">サイボウズ 深谷さんのスライド</a>を見つけ
+Luaモジュールの存在を知ることになりました。</p>
+
+<!-- more -->
+
+
+<p>いろいろ試してからエントリーしたかったのですが、まとまった検証時間が取れていないため、今回は
+(即出の記事もありますが)インストールしてみたと題してお茶を濁そうかと思います。<br>
+(実際にはいろいろなディレクティブが用意されているのでちゃんと調べたいのですが、、、)</p>
+
+<h2>とりあえず、インストールしてみよう</h2>
+
+<p>ngx_luaはサードパーティモジュールのため、利用するにはNGINXをソースからビルドする必要があります。
+なお、<a href="https://www.nginx.com/resources/wiki/modules/lua/">オフィシャル</a>にも書いてありますが、今回導入したv0.9.15では以下のバージョンをフォローしているようです。</p>
+
+<ul>
+<li>1.7.x (last tested: 1.7.10)</li>
+<li>1.6.x</li>
+<li>1.5.x (last tested: 1.5.12)</li>
+<li>1.4.x (last tested: 1.4.4)</li>
+<li>1.3.x (last tested: 1.3.11)</li>
+<li>1.2.x (last tested: 1.2.9)</li>
+<li>1.1.x (last tested: 1.1.5)</li>
+<li>1.0.x (last tested: 1.0.15)</li>
+<li>0.9.x (last tested: 0.9.4)</li>
+<li>0.8.x >= 0.8.54 (last tested: 0.8.54)</li>
+</ul>
+
+
+<h3>必要なもの</h3>
+
+<p>オフィシャルページには以下のように書かれています。</p>
+
+<ol>
+<li>Install LuaJIT 2.0 or 2.1 (recommended) or Lua 5.1 (Lua 5.2 is not supported yet). LuaJIT can be downloaded from the <a href="http://luajit.org/download.html">the LuaJIT project</a> website and Lua 5.1, from the <a href="http://www.lua.org/">Lua project</a> website. Some distribution package managers also distribute LuajIT and/or Lua.</li>
+<li>Download the latest version of the ngx_devel_kit (NDK) module <a href="https://github.com/simpl/ngx_devel_kit/tags">here</a></li>
+<li>Download the latest version of ngx_lua <a href="https://github.com/openresty/lua-nginx-module/tags">here</a></li>
+<li>Download the latest version of NGINX <a href="http://nginx.org/?_ga=1.74399378.1616584518.1442907851">here</a>.</li>
+</ol>
+
+
+<p>あれ？&hellip; latest version of NGINX??<br>
+とりあえず、今回は1.7系からの最新stableの1.8を利用。またLuaはJIT 2.0系を使用してみました。</p>
+
+<h3>ダウンロード</h3>
+
+<p>今回は、tar.gzファイルを <code>/usr/local/src</code> にダウンロード・展開して作業を行いました。</p>
+
+<p><a href="http://luajit.org/download.html">LuaJIT</a> ※JIT 2.0系を使用</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># wget http://luajit.org/download/LuaJIT-2.0.4.tar.gz</span></code></pre></td></tr></table></div></figure>
+
+
+<p><a href="https://github.com/simpl/ngx_devel_kit/tags">ngx_devel_kit</a></p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># wget https://github.com/simpl/ngx_devel_kit/archive/v0.2.19.tar.gz</span></code></pre></td></tr></table></div></figure>
+
+
+<p><a href="https://github.com/openresty/lua-nginx-module/tags">lua-nginx-module</a></p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># wget https://github.com/openresty/lua-nginx-module/archive/v0.9.16.tar.gz</span></code></pre></td></tr></table></div></figure>
+
+
+<p><a href="http://nginx.org/en/download.html">NGINX</a></p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># wget http://nginx.org/download/nginx-1.8.0.tar.gz</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>インストール</h3>
+
+<p>まずは、LuaJITをインストールします。
+デフォルトでは <code>/usr/local</code> 以下にインストールされます。
+インストール先をを変更する場合は、<code>make PREFIX=/home/myself/lj2</code> とPREFIXオプションを設定します。
+ここでは、デフォルトのパスにインストールしました。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># tar xvzf LuaJIT-2.0.4.tar.gz
+</span><span class='line'># cd LuaJIT-2.0.4
+</span><span class='line'># make && make install</span></code></pre></td></tr></table></div></figure>
+
+
+<p>続いて、NGINXのビルド時に必要となるライブラリをyumからインストールします。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># yum install pcre-devel zlib-devel openssl-devel
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>ここからが、lua-nginx-moduleのインストールとなります。
+ngx_devel_kitとlua-nginx-moduleは展開するだけで、NGINXビルド時にadd-moduleオプションでパスを指定します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># # ngx_devel_kit-0.2.19の展開
+</span><span class='line'># tar xvzf v0.2.19.tar.gz
+</span><span class='line'>
+</span><span class='line'># # lua-nginx-module-0.9.16の展開
+</span><span class='line'># tar xvzf v0.9.16.tar.gz
+</span><span class='line'>
+</span><span class='line'># # nginx-1.8.0の展開、make
+</span><span class='line'># tar xvzf nginx-1.8.0.tar.gz
+</span><span class='line'># cd nginx-1.8.0
+</span><span class='line'>
+</span><span class='line'># # NGINXビルドのために、LuaJITの環境変数を設定
+</span><span class='line'># export LUAJIT_LIB=/usr/local/lib
+</span><span class='line'># export LUAJIT_INC=/usr/local/include/luajit-2.0
+</span><span class='line'>
+</span><span class='line'># # NGINXビルド&インストール
+</span><span class='line'># ./configure \
+</span><span class='line'>  --with-ld-opt="-Wl,-rpath,/usr/local/lib" \
+</span><span class='line'>  --add-module=/usr/local/src/ngx_devel_kit-0.2.19 \
+</span><span class='line'>  --add-module=/usr/local/src/lua-nginx-module-0.9.16
+</span><span class='line'>
+</span><span class='line'># make -j2 && make install</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>とりあえず動作テスト</h2>
+
+<p>とりあえず、以上でlua-nginx-module入りのNGINXインストールは完了したので動作テストを行います。
+ここではブラウザ画面に &ldquo;Hello, ngx_lua World!&#8221;と表示させるだけのシンプルな設定だけ試してみました。</p>
+
+<p>locationを <code>nginx.conf</code> に以下の設定を追加しました。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>    location /hello {
+</span><span class='line'>        # MIME type determined by default_type:
+</span><span class='line'>        default_type 'text/plain';
+</span><span class='line'>
+</span><span class='line'>        content_by_lua "ngx.say('Hello, ngx_lua World!')";
+</span><span class='line'>    }</span></code></pre></td></tr></table></div></figure>
+
+
+<p>NGINXを起動し、curlで動作確認をします。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># /usr/local/nginx/sbin/nginx
+</span><span class='line'># curl -v http://localhost/hello
+</span><span class='line'>* Connected to localhost (127.0.0.1) port 80 (#0)
+</span><span class='line'>&gt; GET /hello HTTP/1.1
+</span><span class='line'>&gt; User-Agent: curl/7.29.0
+</span><span class='line'>&gt; Host: localhost
+</span><span class='line'>&gt; Accept: */*
+</span><span class='line'>&gt;
+</span><span class='line'>&lt; HTTP/1.1 200 OK
+</span><span class='line'>&lt; Server: nginx/1.8.0
+</span><span class='line'>&lt; Date: Sat, 17 Oct 2015 09:35:12 GMT
+</span><span class='line'>&lt; Content-Type: text/plain
+</span><span class='line'>&lt; Transfer-Encoding: chunked
+</span><span class='line'>&lt; Connection: keep-alive
+</span><span class='line'>&lt;
+</span><span class='line'>Hello, ngx_lua World!
+</span><span class='line'>* Connection #0 to host localhost left intact</span></code></pre></td></tr></table></div></figure>
+
+
+<p>うまく動きました!!</p>
+
+<h2>最後に&hellip;</h2>
+
+<p>今回は、ngx_luaを動かすための最低限configureでビルドしました。なので必要に応じてモジュールは
+追加する必要があります。
+普段はNGINXの<a href="https://www.nginx.com/resources/wiki/start/topics/tutorials/install/">オフィシャルレポジトリ</a>
+からのパッケージ版インストールばかりでしたのでNGINXのconfigureには疎いですが、パッケージ版から <code>nginx -V</code> などして確認すると良いかもしれません。</p>
+
+<p>また、<a href="https://www.nginx.com/resources/wiki/modules/">NGINX 3rd Party Modules</a>を見ると色々なモジュールが提供されていますので、
+機会があれば触ってみたいと思います。</p>
+
+<p>以上</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[(DIY)RaspbianにWebVirtMgrを入れてみた]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/10/06/webvirtmgr-in-raspberrypi/"/>
+    <updated>2015-10-06T22:43:50+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/10/06/webvirtmgr-in-raspberrypi</id>
+    <content type="html"><![CDATA[<p>最近エンジニアらしい活動をおろそかにしていた為、自宅の検証環境整備をはじめました。</p>
+
+<p>使っていないThinkPad X61をKVMサーバとしたのですが、VPNサーバ程度にしか使用していない
+RaspberryPi2をフロントのGUIにおいて仮想マシン管理しようと画策して見ました。</p>
+
+<!-- more -->
+
+
+<h2>なぜWebVirtMgr？</h2>
+
+<p>トレンド的にはRHEVと統合されたoVirtの方が面白そうなのですが、ARM(RaspberryPi)で動かすには手間が掛かりそうだなという事でパス。
+Djangoベースで開発されたWebVirtMgrを利用する事にしました。</p>
+
+<p>WebVirtMgrはインスタンスの作成からVNCコンソールの提供や、仮想マシンのクローンなど必要な機能は
+一通り揃っているので自宅使いには十二分だと思います。<br>
+何よりスマフォからも操作しやすいので、移動時間でも弄りやすく便利です。</p>
+
+<h2>早速インストール</h2>
+
+<p>今回、Raspbianにインストールした訳ですが、<a href="https://github.com/retspen/webvirtmgr/wiki/Install-WebVirtMgr">公式サイト</a>のDebian向けのインストレーションで簡単に導入できました。<br>
+&ldquo;Install WebVirtMgr&#8221;に記載されている通りに実行するだけで、何の問題もなくインストールできました。</p>
+
+<p><strong><em> ※確実に、公式ドキュメントの方が精度が高いので、詳細は<a href="https://github.com/retspen/webvirtmgr/wiki/Install-WebVirtMgr">こちら</a>をご覧ください。 </em></strong></p>
+
+<h3>必要なパッケージをインストールします。</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ sudo apt-get install git python-pip python-libvirt python-libxml2 novnc supervisor nginx</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>続いて、webvirtmgrをcloneし、Djangoと必要なライブラリー、初期設定を実行します。</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ git clone git://github.com/retspen/webvirtmgr.git
+</span><span class='line'>$ cd webvirtmgr
+</span><span class='line'>$ sudo pip install -r requirements.txt
+</span><span class='line'>$ ./manage.py syncdb
+</span><span class='line'>$ ./manage.py collectstatic</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Nginxを設定します。</h3>
+
+<p>ドキュメントだと、<code>/var/www/webvirtmgr</code> 以下をドキュメントルートにする様なので合わせました。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ sudo mkdir -p /var/www
+</span><span class='line'>$ sudo cd ..
+</span><span class='line'>$ sudo mv webvirtmgr /var/www
+</span><span class='line'>$ sudo chown -R www-data:www-data /var/www/webvirtmgr</span></code></pre></td></tr></table></div></figure>
+
+
+<p>Nginxの設定ファイル <code>webvirtmgr.conf</code> を <code>/etc/nginx/conf.d/</code> に配置します。<br>
+内容をみるとわかると思いますが、デフォルトサーバとして定義しているので状況に合わせて調整が必要です。
+公式ドキュメントにはちゃんとnginx.conf側のコメントアウト手順も記載されていました。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>server {
+</span><span class='line'>    listen 80 default_server;
+</span><span class='line'>
+</span><span class='line'>    server_name $hostname;
+</span><span class='line'>    #access_log /var/log/nginx/webvirtmgr_access_log;
+</span><span class='line'>
+</span><span class='line'>    location /static/ {
+</span><span class='line'>        root /var/www/webvirtmgr/webvirtmgr;
+</span><span class='line'>        expires max;
+</span><span class='line'>    }
+</span><span class='line'>
+</span><span class='line'>    location / {
+</span><span class='line'>        proxy_pass http://127.0.0.1:8000;
+</span><span class='line'>        proxy_set_header X-Real-IP $remote_addr;
+</span><span class='line'>        proxy_set_header X-Forwarded-for $proxy_add_x_forwarded_for;
+</span><span class='line'>        proxy_set_header Host $host:$server_port;
+</span><span class='line'>        proxy_set_header X-Forwarded-Proto $scheme;
+</span><span class='line'>        proxy_connect_timeout 600;
+</span><span class='line'>        proxy_read_timeout 600;
+</span><span class='line'>        proxy_send_timeout 600;
+</span><span class='line'>        client_max_body_size 1024M; # Set higher depending on your needs
+</span><span class='line'>    }
+</span><span class='line'>}</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>supervisorのセットアップ</h3>
+
+<p>まずは、novncをinsservを利用してnovncを実行するようにします。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ sudo service novnc stop
+</span><span class='line'>$ sudo insserv -r novnc
+</span><span class='line'>$ sudo vi /etc/insserv/overrides/novnc
+</span><span class='line'>#!/bin/sh
+</span><span class='line'>### BEGIN INIT INFO
+</span><span class='line'># Provides:          nova-novncproxy
+</span><span class='line'># Required-Start:    $network $local_fs $remote_fs $syslog
+</span><span class='line'># Required-Stop:     $remote_fs
+</span><span class='line'># Default-Start:     
+</span><span class='line'># Default-Stop:      
+</span><span class='line'># Short-Description: Nova NoVNC proxy
+</span><span class='line'># Description:       Nova NoVNC proxy
+</span><span class='line'>### END INIT INFO</span></code></pre></td></tr></table></div></figure>
+
+
+<p>設定ファイル <code>webvirtmgr.conf</code> を <code>/etc/supervisor/conf.d</code> に記述します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>[program:webvirtmgr]
+</span><span class='line'>command=/usr/bin/python /var/www/webvirtmgr/manage.py run_gunicorn -c /var/www/webvirtmgr/conf/gunicorn.conf.py
+</span><span class='line'>directory=/var/www/webvirtmgr
+</span><span class='line'>autostart=true
+</span><span class='line'>autorestart=true
+</span><span class='line'>stdout_logfile=/var/log/supervisor/webvirtmgr.log
+</span><span class='line'>redirect_stderr=true
+</span><span class='line'>user=www-data
+</span><span class='line'>
+</span><span class='line'>[program:webvirtmgr-console]
+</span><span class='line'>command=/usr/bin/python /var/www/webvirtmgr/console/webvirtmgr-console
+</span><span class='line'>directory=/var/www/webvirtmgr
+</span><span class='line'>autostart=true
+</span><span class='line'>autorestart=true
+</span><span class='line'>stdout_logfile=/var/log/supervisor/webvirtmgr-console.log
+</span><span class='line'>redirect_stderr=true
+</span><span class='line'>user=www-data</span></code></pre></td></tr></table></div></figure>
+
+
+<p>設定できたら、supervisorを再起動します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ sudo service supervisor stop
+</span><span class='line'>$ sudo service supervisor start</span></code></pre></td></tr></table></div></figure>
+
+
+<p>っと、以上でインストールは完了しました。</p>
+
+<h2>実際使ってみて&hellip;</h2>
+
+<p>やりたい事と手間暇を考えると正直これで満足とい言った状況です。<br>
+ただ、WebVirtMgrとKVMサーバを分けた事で起こる弊害として、ISO用のストレージプールが
+KVMホストを向いているため、画面からISOファイルをアップロードしても反映されない事でしょうか。</p>
+
+<p>今は作成したISO用のストレージプールと同じパスにファイルを置いて凌いでいますが、
+本格的に使いたいと思うのであればNFSなど利用して共有する必要があると思います。</p>
+
+<p>余談ですが、<code>aptitude search ocfs</code> とかするとOCFS2のパッケージがあるようなので、
+気が向いたら RaspberryPi2でiSCSIサーバでも試してみようかと思います。</p>
+
+<hr />
+
+<p>以上です。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[docker-registryによるプライベートDockerリポジトリの作成]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/02/23/setting-up-authentication-for-docker-registry/"/>
+    <updated>2015-02-23T00:04:52+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/02/23/setting-up-authentication-for-docker-registry</id>
+    <content type="html"><![CDATA[<p><a href="http://deeeet.com/writing/2014/10/02/docker-private-registry-auth/">こちらの記事</a>を元に、認証付きのプライベートなDockerリポジトリを作成しました。
+リンクにも書かれていますが、<code>docker login</code>はSSL通信とBasic認証が必要なため、オレオレCA+Nginxの環境を試してみました。</p>
+
+<!-- more -->
+
+
+<h2>SSLプライベート認証局の作成</h2>
+
+<p>CentOS7のデフォルトのOpenSSLを利用して作成しました。設定ファイルは<code>/etc/pki/tls/openssl.cnf</code>にあります。</p>
+
+<h3>オレオレCAの作成</h3>
+
+<p>私の<a href="http://d.hatena.ne.jp/marmotte/20100203">旧ブログ</a>で簡単に説明していますが、折をみて改めてオレオレCAの記事は書きたいと思います。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># DEFALT_CA_PATH=/etc/pki/CA
+</span><span class='line'># mkdir -p ${DEFALT_CA_PATH}/private
+</span><span class='line'># mkdir -p ${DEFALT_CA_PATH}/newcerts
+</span><span class='line'># touch ${DEFALT_CA_PATH}/index.txt
+</span><span class='line'># touch ${DEFALT_CA_PATH}/serial
+</span><span class='line'># echo 00 &gt; ${DEFALT_CA_PATH}/serial
+</span><span class='line'># openssl req -new -x509 -newkey rsa:2048 -out ${DEFALT_CA_PATH}/cacert.pem -keyout ${DEFALT_CA_PATH}/private/cakey.pem</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>オレオレCAをOSで信頼できる証明局する</h3>
+
+<p>DockerAIPを実行するサーバ(Dockerホスト)側で信頼された認証局である必要があるため、オレオレCAの証明書をOSに登録します。
+※ここでは、オレオレCAとDockerホストが同じマシンにあることを前提にしています。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># cat /etc/pki/CA/cacert.pem &gt;&gt; /etc/ssl/certs/ca-bundle.crt</span></code></pre></td></tr></table></div></figure>
+
+
+<p>なお、設定後はDockerデーモンを再起動する必要があります。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># systemctl restart docker</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>docker-registryを起動する</h2>
+
+<p>とりあえず、docker-registryの<a href="https://github.com/docker/docker-registry/tree/master#quick-start">QuickStart</a>に従って立ち上げます。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># docker run -d -p 5000:5000 registry</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>Nginxの設定を行う。</h2>
+
+<h3>Nginxのインストール</h3>
+
+<p>好みの問題ですが、Nginxはオフィシャルのyumリポジトリからインストールしました。
+参考: <a href="http://wiki.nginx.org/Install">Official Red Hat/CentOS packages</a></p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># vi /etc/yum.repos.d/nginx
+</span><span class='line'>
+</span><span class='line'>[nginx]
+</span><span class='line'>name=nginx repo
+</span><span class='line'>baseurl=http://nginx.org/packages/centos/$releasever/$basearch/
+</span><span class='line'>gpgcheck=0
+</span><span class='line'>enabled=1</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>docker-registry用のNginxリバースプロクシの設定ファイルを配置する</h3>
+
+<p>GitHubのリポジトリよりNginxの設定ファイルを配置します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># git clone https://github.com/docker/docker-registry
+</span><span class='line'># cp docker-registry/contrib/nginx/nginx_1-3-9.conf /etc/nginx/conf.d/docker-registry-nginx.conf
+</span><span class='line'># cp docker-registry/contrib/nginx/docker-registry.conf /etc/nginx/</span></code></pre></td></tr></table></div></figure>
+
+
+<p>設定をコピーしらた、<code>/etc/nginx/conf.d/docker-registry-nginx.conf</code>のServerNameなどを自分の環境にあわせ修正します。</p>
+
+<h3>SSLの鍵ファイル作成</h3>
+
+<p>鍵ファイルはNginxの設定に合わせて作成しています。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># mkdir -p /etc/ssl/private/
+</span><span class='line'># mkdir -p /etc/ssl/csr
+</span><span class='line'># openssl req -new -keyout /etc/ssl/private/docker-registry -out /etc/ssl/csr/docker-registry</span></code></pre></td></tr></table></div></figure>
+
+
+<p>お決まりですが、鍵ファイルのパスフレーズを解除します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># mv /etc/ssl/private/docker-registry /etc/ssl/private/docker-registry.org
+</span><span class='line'># openssl rsa -in /etc/ssl/private/docker-registry.org -out //etc/ssl/private/docker-registry</span></code></pre></td></tr></table></div></figure>
+
+
+<p>オレオレCAで認証します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># openssl ca -out /etc/ssl/certs/docker-registry -infiles /etc/ssl/csr/docker-registry</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>ベーシック認証用のファイルを作成</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># yum -y install httpd-tools
+</span><span class='line'># htpasswd -c /etc/nginx/docker-registry.htpasswd hoge</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>Nginxの起動</h3>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># nginx -t
+</span><span class='line'># systemctl enable nginx
+</span><span class='line'># systemctl start nginx</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>プライベートDockerリポジトリにログインする</h2>
+
+<p>ここでは、NginxでServerName(SSLサーバ証明書も)をlocalhostとした時の例です。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># docker login https://localhost</span></code></pre></td></tr></table></div></figure>
+
+
+<hr />
+
+<p>以上です。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[MarkdownのファイルをWord書類に変換する]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/02/06/convert-markdown-to-word-document/"/>
+    <updated>2015-02-06T20:11:44+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/02/06/convert-markdown-to-word-document</id>
+    <content type="html"><![CDATA[<p>markdownに一度慣れてしまうと、レイアウトなどをあまり気にせずに文書を作成できるため
+非常に便利なのですが、印刷や文書共有についてはOffice製品に比べると汎用性に欠けてしまいます。</p>
+
+<!-- more -->
+
+
+<p>Pandocを利用すると、Word書類(docx)などに変換できるため大変便利です。</p>
+
+<h2>MacOSXへインストール</h2>
+
+<p>pandocは、Haskell Cabalにパッケージが登録されていますので、Cabalをインストールします。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ brew install ghc cabal-install</span></code></pre></td></tr></table></div></figure>
+
+
+<p>続いて、cabalからpandocsをインストールします。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ cabal update
+</span><span class='line'>$ cabal install pandoc</span></code></pre></td></tr></table></div></figure>
+
+
+<p>バイナリーが<code>$HOME/.calbal/bin</code>にインストールされるのでPATHを通します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>export PATH=$PATH:$HOME/.cabal/bin</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>markdownファイルをWard書類(docx)に変換する。</h2>
+
+<p>下記のコマンドでファイルを変換できます。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ pandoc &lt;path-to-markdown&gt; -t docx -o &lt;path-to-docx&gt;</span></code></pre></td></tr></table></div></figure>
+
+
+<hr />
+
+<p>ユーザーズガイドをみると色々できそうですが、今回はこのくらいにしておきたいと思います。</p>
+
+<h3>参考リンク</h3>
+
+<ul>
+<li><a href="http://qiita.com/enten0213/items/f67f5601cbed6ef86b3c">MarkdownをWord形式(docx)に変換する</a></li>
+<li><a href="http://sky-y.github.io/site-pandoc-jp/users-guide/">Pandoc ユーザーズガイド 日本語版</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[CentOS7のDocker Imageを自作する]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/01/15/create-docker-image-of-centos7/"/>
+    <updated>2015-01-15T13:25:13+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/01/15/create-docker-image-of-centos7</id>
+    <content type="html"><![CDATA[<p>これまでCentOSでdockerイメージをを自作する際は、febootstrapというコマンドを利用していましたが、
+CentOS7ではepelからもパッケージがなくなっていたので調べてみました。</p>
+
+<!-- more -->
+
+
+<h2>febootstrapからsuperminに変更された</h2>
+
+<p>背景までは調べていませんが、<a href="http://people.redhat.com/~rjones/supermin/">このページ</a>を見ると
+febootstrapはsuperminに変わったようです。</p>
+
+<blockquote><p>This tool was formerly known as febootstrap.</p></blockquote>
+
+<h2>CentOS7にsuperminをインストールする</h2>
+
+<p><a href="http://qiita.com/tukiyo3/items/7a5fe5a13d98740db1eb">参考にしたページ</a>にも書いてありますが、
+yumのパッケージはバージョンが古いためソースから5.1.11をインストールしました。<br/>
+※yumでは4.14でオプションがかなり異なります。</p>
+
+<p>先ずはREADMEに従い、コンパイルに必要な環境をパッケージからインストールします。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># yum install gcc gawk ocaml ocaml-findlib perl-Pod-Perldoc e2fsprogs e2fsprogs-devel e2fsprogs-libs e2fsprogs-static glibc-static yum-utils rpm-devel</span></code></pre></td></tr></table></div></figure>
+
+
+<p>なお、READMEには記載されていませんでしたが、RPM系の環境用にコンパイルする場合、<code>rpm-devel</code>を
+インストールしておかないと<code>supermin --prepare</code>時に以下のエラーメッセージで処理が止まってしまいます。</p>
+
+<ul>
+<li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=1082044">CentOS 6.4: Supermin fails to detect RPM based distro</a></li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># /usr/local/bin/supermin --prepare yum -o supermin.d
+</span><span class='line'>supermin: could not detect package manager used by this system or distro.
+</span><span class='line'>
+</span><span class='line'>If this is a new Linux distro, or not Linux, or a Linux distro that uses
+</span><span class='line'>an unusual packaging format then you may need to port supermin.  If
+</span><span class='line'>you are expecting that supermin should work on this system or distro
+</span><span class='line'>then it may be that the package detection code is not working.
+</span><span class='line'>
+</span><span class='line'>To list which package handlers are compiled into this version of
+</span><span class='line'>supermin, do:
+</span><span class='line'>
+</span><span class='line'>supermin --list-drivers</span></code></pre></td></tr></table></div></figure>
+
+
+<p>コンパイルとインストールは一般的ですが、以下の手順で行います。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># cd /usr/local/src
+</span><span class='line'># wget http://libguestfs.org/download/supermin/supermin-5.1.11.tar.gz
+</span><span class='line'># tar xvzf supermin-5.1.11.tar.gz
+</span><span class='line'># cd supermin-5.1.11
+</span><span class='line'># ./configure
+</span><span class='line'># make
+</span><span class='line'># make install</span></code></pre></td></tr></table></div></figure>
+
+
+<p>インストールが終わったら、念のため以下のコマンドを確認してください。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># /usr/local/bin/supermin --list-drivers
+</span><span class='line'>arch/pacman     not-detected
+</span><span class='line'>debian/dpkg     not-detected
+</span><span class='line'>mageia/rpm      not-detected
+</span><span class='line'>opensuse/rpm    not-detected
+</span><span class='line'>fedora/rpm      detected</span></code></pre></td></tr></table></div></figure>
+
+
+<p>出力に<code>fedora/rpm      detected</code>があれば大丈夫です。</p>
+
+<h2>CentOS7のDocker Imageの作成</h2>
+
+<p><a href="http://qiita.com/MiCHiLU/items/762275df727b60c3ff41">こちらの記事</a>を参考に、chrootイメージを作成します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># /usr/local/bin/supermin --prepare yum -o supermin.d
+</span><span class='line'># /usr/local/bin/supermin --build --format chroot supermin.d -o appliance.d</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># cd appliance.d
+</span><span class='line'># mv usr/share/locale/en usr/share/locale/en_US tmp
+</span><span class='line'># rm -rf usr/share/locale/*
+</span><span class='line'># mv tmp/en tmp/en_US usr/share/locale/
+</span><span class='line'># mv usr/share/i18n/locales/en_US tmp
+</span><span class='line'># rm -rf usr/share/i18n/locales/*
+</span><span class='line'># mv tmp/en_US usr/share/i18n/locales/
+</span><span class='line'># cd ..</span></code></pre></td></tr></table></div></figure>
+
+
+<p>上記で作成すると <code>$releasever</code> がうまく取得できず、yumが動かなかったのでもう一手間加えます。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># cd appliance.d
+</span><span class='line'># echo 7 &gt; etc/yum/vars/releasever
+</span><span class='line'># cd ..</span></code></pre></td></tr></table></div></figure>
+
+
+<p>dockerイメージにするため、tarで固めます。<br/>
+xz形式で圧縮するのが一般的なようなので、以下のようにします。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># tar --numeric-owner -Jcpf centos7-zero.tar.xz -C appliance.d .</span></code></pre></td></tr></table></div></figure>
+
+
+<p>今回利用した docker 1.3.2 では<code>docker import</code>に問題があるようなので圧縮なしで作成しました。</p>
+
+<ul>
+<li><a href="https://github.com/docker/docker/issues/9327">Docker load fails to load xz-compressed image #9327</a></li>
+</ul>
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># tar --numeric-owner -cpf centos7-zero.tar -C appliance.d .</span></code></pre></td></tr></table></div></figure>
+
+
+<p>ちなみに、1.3.2にインストールすると以下のエラーになります。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># cat centos7-zero.tar.xz | docker import - local/centos7-zero
+</span><span class='line'>2015/01/15 09:37:45 Error: ApplyLayer exit status 1 exec: "xz": executable file not found in $PATH</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>作成したイメージをdockerにインポートする</h2>
+
+<p>以下のコマンドで、docker imageとしてimportします。<br/>
+※本来であれば、xz形式でも<code>docker import</code>が解いてくれます。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># cat centos7-zero.tar | docker import - local/centos7-zero</span></code></pre></td></tr></table></div></figure>
+
+
+<p>以下のようにして、イメージが登録されたことを確認します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># docker images
+</span><span class='line'>REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+</span><span class='line'>local/centos7-zero   latest              cb1d0872e89a        45 minutes ago      136.4 MB</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>その他</h2>
+
+<p>上記手順で作成したイメージは大変シンプルでdocker向きですが、本当に何もパッケージが入っていないです。
+そこで、centosのオフィシャルイメージにインストールされていたパッケージから<code>supermin --prepare</code>を書いてみました。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># /usr/local/bin/supermin --prepare audit-libs basesystem bash binutils bzip2-libs ca-certificates centos-release chkconfig coreutils cpio cracklib cracklib-dicts curl cyrus-sasl-lib dbus-libs device-mapper device-mapper-libs diffutils elfutils-libelf expat fakesystemd file file-libs filesystem findutils gawk gdbm glib2 glibc glibc-common gmp gnupg2 gpgme grep groff-base gzip hardlink info iproute iptables iptables-services iputils keyutils-libs kmod-libs kpartx krb5-libs less libacl libassuan libattr libblkid libcap libcap-ng libcom_err libcroco libcurl libdb libdb-utils libffi libgcc libgcrypt libgomp libgpg-error libidn libmnl libmount libnetfilter_conntrack libnfnetlink libpwquality libselinux libsemanage libsepol libssh2 libstdc++ libtasn1 libunistring libuser libutempter libuuid libverto libxml2 lua ncurses ncurses-base ncurses-libs nspr nss nss-softokn nss-softokn-freebl nss-sysinit nss-tools nss-util openldap openssl-libs p11-kit p11-kit-trust pam pcre pinentry pkgconfig popt procps-ng pth pygpgme pyliblzma python python-iniparse python-libs python-pycurl python-urlgrabber pyxattr readline rootfiles rpm rpm-build-libs rpm-libs rpm-python sed setup shadow-utils shared-mime-info sqlite systemd-libs tzdata ustr util-linux vim-minimal which xz xz-libs yum yum-metadata-parser yum-plugin-fastestmirror zlib -o supermin.d</span></code></pre></td></tr></table></div></figure>
+
+
+<p>また、必要であればDockerfileを使って、Minimal Installしても良いと思います。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># CentOS7 Minimal Install Image
+</span><span class='line'>#
+</span><span class='line'># VERSION 20150115
+</span><span class='line'>
+</span><span class='line'>FROM       local/centos7-zero
+</span><span class='line'>MAINTAINER Yosuke Yamamoto
+</span><span class='line'>
+</span><span class='line'>RUN yum -y groupinstall "Minimal Install"; yum clean</span></code></pre></td></tr></table></div></figure>
+
+
+<p>この辺りは、使用場面によっても異なってくると思うので深く追求はしません。</p>
+
+<h3>参考</h3>
+
+<ul>
+<li><a href="http://qiita.com/hnakamur/items/8e3136488fcfe763802c">docker用にCentOS 6.5のbase imageを自作する</a></li>
+<li><a href="http://qiita.com/tukiyo3/items/7a5fe5a13d98740db1eb">supermin (febootstrap後継)</a></li>
+<li><a href="http://qiita.com/MiCHiLU/items/762275df727b60c3ff41">fedoraのDockerイメージを作成する</a></li>
+<li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=1082044">CentOS 6.4: Supermin fails to detect RPM based distro</a></li>
+<li><a href="https://github.com/docker/docker/issues/9327">Docker load fails to load xz-compressed image</a></li>
+</ul>
+
+
+<hr />
+
+<p>以上です。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Homebrewでパッケージのバージョンを切り替える]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/01/14/version-specified-in-the-homebrew/"/>
+    <updated>2015-01-14T11:13:22+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/01/14/version-specified-in-the-homebrew</id>
+    <content type="html"><![CDATA[<p><a href="http://marmotte.pyrites.jp/blog/2015/01/13/docker-on-centos7/">前回の記事</a>でdockerをCentOS7にインストールしてみましたが、先述のとおりdockerのバージョンは最新ではありませんでした。
+しかし、順当に<code>brew update</code>を行なっていくと最新バージョンになってしまい、docker AIPのバージョン差でリモートからコントロールできません。</p>
+
+<p>そこで今回は、homebrewでインストールパッケージのバージョン管理について調べてみました。</p>
+
+<!-- more -->
+
+
+<h2>インストール済みの旧バージョンへ切り替える。</h2>
+
+<p>過去にインストールした旧バージョンがある場合、<code>brew switch</code>コマンドでバージョン指定することができます。</p>
+
+<p>まずは、<code>brew info</code>を使ってインストール済みのバージョンを確認します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+<span class='line-number'>24</span>
+<span class='line-number'>25</span>
+<span class='line-number'>26</span>
+<span class='line-number'>27</span>
+<span class='line-number'>28</span>
+<span class='line-number'>29</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ brew info docker
+</span><span class='line'>docker: stable 1.4.1 (bottled)
+</span><span class='line'>https://www.docker.com/
+</span><span class='line'>/usr/local/Cellar/docker/1.1.1 (9 files, 9.8M)
+</span><span class='line'>Poured from bottle
+</span><span class='line'>/usr/local/Cellar/docker/1.1.2 (9 files, 9.8M)
+</span><span class='line'>Poured from bottle
+</span><span class='line'>/usr/local/Cellar/docker/1.2.0 (9 files, 6.6M)
+</span><span class='line'>Poured from bottle
+</span><span class='line'>/usr/local/Cellar/docker/1.3.0 (9 files, 6.8M)
+</span><span class='line'>Built from source
+</span><span class='line'>/usr/local/Cellar/docker/1.3.1 (9 files, 6.8M)
+</span><span class='line'>Poured from bottle
+</span><span class='line'>/usr/local/Cellar/docker/1.3.2 (9 files, 6.9M)
+</span><span class='line'>Poured from bottle
+</span><span class='line'>/usr/local/Cellar/docker/1.4.1 (9 files, 7.0M) *
+</span><span class='line'>Poured from bottle
+</span><span class='line'>From: https://github.com/Homebrew/homebrew/blob/master/Library/Formula/docker.rb
+</span><span class='line'>==&gt; Dependencies
+</span><span class='line'>Build: go ✘
+</span><span class='line'>==&gt; Options
+</span><span class='line'>--without-completions
+</span><span class='line'>Disable bash/zsh completions
+</span><span class='line'>==&gt; Caveats
+</span><span class='line'>Bash completion has been installed to:
+</span><span class='line'>/usr/local/etc/bash_completion.d
+</span><span class='line'>
+</span><span class='line'>zsh completion has been installed to:
+</span><span class='line'>/usr/local/share/zsh/site-functions</span></code></pre></td></tr></table></div></figure>
+
+
+<p>切り替えたいバージョンがインストール済みであれば、下記のようにしてバージョンを切り替えます。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ # ここでは、現在のdocker clientのバージョンを確認
+</span><span class='line'>$ docker -v
+</span><span class='line'>Docker version 1.4.1, build 5bc2ff8
+</span><span class='line'>$
+</span><span class='line'>$ # docker clientのバージョンを1.3.2に切り替える
+</span><span class='line'>$ brew switch docker 1.3.2
+</span><span class='line'>Cleaning /usr/local/Cellar/docker/1.1.1
+</span><span class='line'>Cleaning /usr/local/Cellar/docker/1.1.2
+</span><span class='line'>Cleaning /usr/local/Cellar/docker/1.2.0
+</span><span class='line'>Cleaning /usr/local/Cellar/docker/1.3.0
+</span><span class='line'>Cleaning /usr/local/Cellar/docker/1.3.1
+</span><span class='line'>Cleaning /usr/local/Cellar/docker/1.3.2
+</span><span class='line'>Cleaning /usr/local/Cellar/docker/1.4.1
+</span><span class='line'>3 links created for /usr/local/Cellar/docker/1.3.2
+</span><span class='line'>$
+</span><span class='line'>$ # dockerのバージョンが切り替わったことを確認する。
+</span><span class='line'>$ docker -v
+</span><span class='line'>Docker version 1.3.2, build 39fa2fa</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>インストールされていない旧バージョンをインストールする。</h2>
+
+<p>上記の操作では旧バージョンがインストールされていることが前提となりますが、いつでも都合よく
+旧バージョンがインストールされているとは限りません。<br/>
+以前は<code>brew versions</code>というコマンドが存在していたのですが、無くなってしまったため<code>homebrew/boneyard</code>を
+tapすることで復活(?)します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ brew tap homebrew/boneyard</span></code></pre></td></tr></table></div></figure>
+
+
+<p>homebrew/boneyardをtapすると、以下のように<code>brew versions &lt;パッケージ名&gt;</code>でバージョン一覧が取得できます。<br/>
+※以前、golang 1.2をインストールした際に<code>homebrew/versions</code>をtapしたのでWarningが出ています。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+<span class='line-number'>22</span>
+<span class='line-number'>23</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ brew versions docker
+</span><span class='line'>Warning: brew-versions is unsupported and will be removed soon.
+</span><span class='line'>You should use the homebrew-versions tap instead:
+</span><span class='line'>https://github.com/Homebrew/homebrew-versions
+</span><span class='line'>
+</span><span class='line'>1.4.1    git checkout fc4e7d2 /usr/local/Library/Formula/docker.rb
+</span><span class='line'>1.3.3    git checkout 21e59c6 /usr/local/Library/Formula/docker.rb
+</span><span class='line'>1.3.2    git checkout b11f75b /usr/local/Library/Formula/docker.rb
+</span><span class='line'>1.3.1    git checkout f25ec40 /usr/local/Library/Formula/docker.rb
+</span><span class='line'>1.3.0    git checkout c42188e /usr/local/Library/Formula/docker.rb
+</span><span class='line'>1.2.0    git checkout 9ccfc7e /usr/local/Library/Formula/docker.rb
+</span><span class='line'>1.1.2    git checkout c6e04e3 /usr/local/Library/Formula/docker.rb
+</span><span class='line'>1.1.1    git checkout 68c6b1e /usr/local/Library/Formula/docker.rb
+</span><span class='line'>1.1.0    git checkout 3db0658 /usr/local/Library/Formula/docker.rb
+</span><span class='line'>1.0.1    git checkout 7666e02 /usr/local/Library/Formula/docker.rb
+</span><span class='line'>1.0.0    git checkout c513c42 /usr/local/Library/Formula/docker.rb
+</span><span class='line'>0.11.1   git checkout eefa235 /usr/local/Library/Formula/docker.rb
+</span><span class='line'>0.11.0   git checkout f4560d2 /usr/local/Library/Formula/docker.rb
+</span><span class='line'>0.10.0   git checkout c26c37d /usr/local/Library/Formula/docker.rb
+</span><span class='line'>0.9.1    git checkout 6bd6532 /usr/local/Library/Formula/docker.rb
+</span><span class='line'>0.9.0    git checkout a90b40e /usr/local/Library/Formula/docker.rb
+</span><span class='line'>0.8.1    git checkout 4ee0389 /usr/local/Library/Formula/docker.rb
+</span><span class='line'>0.8.0    git checkout 9880ace /usr/local/Library/Formula/docker.rb</span></code></pre></td></tr></table></div></figure>
+
+
+<p>指定のバージョンをインストールします。(ここでは、1.3.2を指定する例です)</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ cd /usr/local
+</span><span class='line'>$ brew unlink docker # すでに別バージョンがインストールされている場合unlinkする
+</span><span class='line'>$ git checkout b11f75b /usr/local/Library/Formula/docker.rb
+</span><span class='line'>$ brew install docker</span></code></pre></td></tr></table></div></figure>
+
+
+<hr />
+
+<p>以上です。</p>
+
+<h3>参考</h3>
+
+<ul>
+<li><a href="http://qiita.com/xxthermidorxx/items/91a7c502d33e0dde72ad">Homebrewでformulaを特定のバージョンに切り替える方法まとめ</a></li>
+<li><a href="http://qiita.com/ryam/items/066818fd149e68a98797">Homebrewで古いバージョンのアプリケーションをインストールする</a></li>
+<li><a href="http://marutanm.github.io/blog/2012/02/01/homebrew-switch-formula-version/">Homebrewで複数versionはいってるformulaをきりかえるには</a></li>
+</ul>
+
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[CentOS7にDockerをインストールし、TCP経由でAPIを利用できるようにする]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/01/13/docker-on-centos7/"/>
+    <updated>2015-01-13T23:27:23+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/01/13/docker-on-centos7</id>
+    <content type="html"><![CDATA[<p>CentOS7になり、Dockerが標準のyumリポジトリに追加されていたのでインストールメモです。</p>
+
+<!-- more -->
+
+
+<h2>インストールする</h2>
+
+<p>公式ドキュメントの<a href="https://docs.docker.com/installation/centos/">Installing Docker - CentOS-7</a>にもありますが、</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ sudo yum install docker</span></code></pre></td></tr></table></div></figure>
+
+
+<p>にてインストールすることができます。<br/>
+ただし、2015/01/13時点ではちょっと古くVersionは1.3.2(最新は1.4.1)でした。</p>
+
+<p>dockerを起動するには、以下のようにして起動します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ sudo systemctl start docker</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>TCP経由でRemoteAPIを利用できるようにする。</h2>
+
+<p>デフォルトではfdのみなのでローカルホストからしかdockerコマンドを利用できませんが、TCPソケットを有効にして
+リモートマシンからもコントロールできるようにします。<br/>
+ドキュメント上、以前は Port:4243を使用していましたが、メジャーバージョンから Port:2375に変わっています。</p>
+
+<p>有効にするには、<code>/etc/sysconfig/docker</code>のOPTIONSに<code>-H tcp://0.0.0.0:2375</code>を追加します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># Modify these options if you want to change the way the docker daemon runs
+</span><span class='line'>OPTIONS=--selinux-enabled -H fd:// -H tcp://0.0.0.0:2375</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ sudo systemctl stop docker
+</span><span class='line'>$ sudo systemctl start docker</span></code></pre></td></tr></table></div></figure>
+
+
+<p>なお、<a href="https://coreos.com/docs/launching-containers/building/customizing-docker/">CoreOSのドキュメント</a>ではデーモンの起動オプションではなく、<code>/etc/systemd/system/docker-tcp.socket</code>ファイルを作成し下記ように記述します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>[Unit]
+</span><span class='line'>Description=Docker Socket for the API
+</span><span class='line'>
+</span><span class='line'>[Socket]
+</span><span class='line'>ListenStream=2375
+</span><span class='line'>BindIPv6Only=both
+</span><span class='line'>Service=docker.service
+</span><span class='line'>
+</span><span class='line'>[Install]
+</span><span class='line'>WantedBy=sockets.target</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ sudo systemctl enable docker
+</span><span class='line'>$ sudo systemctl enable docker-tcp.socket
+</span><span class='line'>$ sudo systemctl stop docker
+</span><span class='line'>$ sudo systemctl start docker-tcp.socket
+</span><span class='line'>$ sudo systemctl start docker</span></code></pre></td></tr></table></div></figure>
+
+
+<p>まだsystemdの知見が低いため、どちらの設定が良いのかは調査中です。</p>
+
+<h2>TCP経由でリモートのdockerをコントロールする</h2>
+
+<p>基本的にはdocker cliの利用方法は変わりませんが、ホスト指定が必要になります。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>docker -H tcp://127.0.0.1:2375 ps</span></code></pre></td></tr></table></div></figure>
+
+
+<p>なお、毎回 <code>-H tcp://(接続先ホスト):(ポート番号)</code> を入力するのは面倒くさいので環境変数<code>DOCKER_HOST</code>を設定します。
+bash系であれば以下のように設定します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>export DOCKER_HOST=tcp://localhost:2375</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>どうしても最新版Dockerを使用したい場合</h2>
+
+<p>インストレーションドキュメントの<a href="https://docs.docker.com/installation/binaries/">Binaries</a>にもありますが、
+以下のようにして最新版のバイナリを取得することができます。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ wget https://get.docker.com/builds/Linux/x86_64/docker-latest -O docker
+</span><span class='line'>$ chmod +x docker</span></code></pre></td></tr></table></div></figure>
+
+
+<p>ちゃんとした動作確認はしていませんが、ダウンロードしたバイナリを/usr/bin/dockerに上書きするとバージョンは上がりました。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ sudo systemctl stop docker
+</span><span class='line'>$ sudo mv /usr/bin/docker /usr/bin/docker-1.3.2
+</span><span class='line'>$ sudo mv ./docker /usr/bin/docker
+</span><span class='line'>$ sudo systemctl start docker</span></code></pre></td></tr></table></div></figure>
+
+
+<p>とはいえ、無理やりバージョンを変えているので、美しくはないですね。。。<br/>
+どうしても最新を利用したい場合はSRPMから自作したほうが良いと思います。</p>
+
+<hr />
+
+<p>とりあえず、本エントリーは以上です。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[MacOSX上でISOファイルからインストールUSBディスクを作る]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/01/04/create-bootable-usb-from-iso-file/"/>
+    <updated>2015-01-04T20:40:39+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/01/04/create-bootable-usb-from-iso-file</id>
+    <content type="html"><![CDATA[<p>久しぶりにCentOSを物理マシンにインストールしようと思ったので、BootableUSBを作成しました。
+毎度、「MacOSX(今回はYosemite)でどう作るんだっけ？」とググる自分に嫌気を覚えたのでメモ。</p>
+
+<h2>2018/3/12追記</h2>
+
+<p>記事を書いてから大分時間が経過したことと、ドメイン廃止に伴い新しくブログを立ち上げました。
+<code>/dev/rdiskX</code>との速度比較も追記しましたので<a href="http://blog.eksy.tokyo/post/create-bootable-usb-from-iso-file/">新サイトの記事</a>をご覧ください。</p>
+
+<!-- more -->
+
+
+<hr />
+
+<h3>用意するもの</h3>
+
+<ul>
+<li>インストールメディアのISOファイル</li>
+<li>ISOファイルのサイズ以上の容量があるUSBメモリ</li>
+<li>Macのターミナルアプリ</li>
+</ul>
+
+
+<h3>USBを初期化する</h3>
+
+<p>USBメモリをMacに接続しフォーマットします。&#8221;ディスクユーティリテ&#8221;アプリから行ってもいいのですが、
+スクリーンショットを取るのがめんどくさかったので今回はコマンドラインから操作しました。</p>
+
+<p><strong>デバイス名を確認します。</strong><br/>
+私の環境では、以下のように表示され、<code>/dev/disk2</code>というのがわかりました。<br/>
+※私はディスク容量などで判断していますが、USBをさす前・さした後の差分で確認する方法もあります。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ diskutil list
+</span><span class='line'>/dev/disk0
+</span><span class='line'>#:                       TYPE NAME                    SIZE       IDENTIFIER
+</span><span class='line'>0:      GUID_partition_scheme                        *251.0 GB   disk0
+</span><span class='line'>1:                        EFI EFI                     209.7 MB   disk0s1
+</span><span class='line'>2:          Apple_CoreStorage                         250.1 GB   disk0s2
+</span><span class='line'>3:                 Apple_Boot Recovery HD             650.0 MB   disk0s3
+</span><span class='line'>/dev/disk1
+</span><span class='line'>#:                       TYPE NAME                    SIZE       IDENTIFIER
+</span><span class='line'>0:                  Apple_HFS Macintosh HD           *249.8 GB   disk1
+</span><span class='line'>Logical Volume on disk0s2
+</span><span class='line'>03010883-5866-4002-BDA4-FF6EDA3E4A96
+</span><span class='line'>Unlocked Encrypted
+</span><span class='line'>/dev/disk2
+</span><span class='line'>#:                       TYPE NAME                    SIZE       IDENTIFIER
+</span><span class='line'>0:      GUID_partition_scheme                        *15.6 GB    disk2
+</span><span class='line'>1:                        EFI EFI                     209.7 MB   disk2s1
+</span><span class='line'>2:       Microsoft Basic Data UNTITLED                15.4 GB    disk2s2</span></code></pre></td></tr></table></div></figure>
+
+
+<p><strong>MS-DOS(FAT)形式で対象(<code>/dev/disk2</code>)を初期化します。</strong></p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ diskutil eraseDisk MS-DOS UNTITLED /dev/disk2</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>ISOファイルの書き込み</h3>
+
+<p>ddコマンドを利用してISOイメージをUSBに書き込むわけですが、USBをフォーマットした状態では
+Finder上でマウントされたままなので以下のコマンドでアンマウントします。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ diskutil unmountDisk /dev/disk2
+</span><span class='line'>Unmount of all volumes on disk2 was successful</span></code></pre></td></tr></table></div></figure>
+
+
+<p>ddコマンドでISOファイルを書き込みます。なおデバイスファイル(/dev/diskN)は一般ユーザでのアクセス権がないため<code>sudo</code>が必要です。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ sudo dd if=./CentOS-6.5-x86_64-minimal.iso of=/dev/disk2 bs=4028</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>USBメモリを取り外す</h3>
+
+<p>ddの実行にはしばらくかかります。気長に待ちましょう。<br/>
+USBメモリへ書き込みが完了したら、以下のコマンドで取り外せる状態にします。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ diskutil eject /dev/disk2</span></code></pre></td></tr></table></div></figure>
+
+
+<p>念のため、<code>diskutl list</code>を確認しましょう。<code>/dev/disk2</code>のエントリーがなくなっているはずです。</p>
+
+<hr />
+
+<p>以上で、BootableUSBの作成は完了です。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Vagrant 1.7.1導入したら若干不具合が発生したのでメモ]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/01/03/the-problems-caused-by-updates-to-vagrant1-dot-7-1/"/>
+    <updated>2015-01-03T17:43:55+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/01/03/the-problems-caused-by-updates-to-vagrant1-dot-7-1</id>
+    <content type="html"><![CDATA[<p>気がつけばVagrantのStableが1.7.1になっていたので導入してみたのですが、自分にとって若干不具合があったので
+対策をメモしておきます。</p>
+
+<!-- more -->
+
+
+<h3>sshコマンドでVagrantBoxに接続できない</h3>
+
+<p>chef-soloの動作確認などのために、<code>vagrant ssh</code>だけではなく普通のsshコマンドで接続できるよう<code>$HOME/.ssh/config</code>に下記のような設定を記述していたのですが、
+アップデートによりIdentityFileで接続できなくなってしまいました。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>Host vagrant
+</span><span class='line'>Hostname        192.168.33.10
+</span><span class='line'>User            vagrant
+</span><span class='line'>IdentityFile    ~/.vagrant.d/insecure_private_key
+</span><span class='line'>StrictHostKeyChecking no</span></code></pre></td></tr></table></div></figure>
+
+
+<p>これまでは、IdentityFileを指定しているので鍵交換方式で接続できたのですが、以下のようにPasswordを求められるようになってしまいました。<br/>
+ちなみに、<code>vagrant ssh</code>では問題なく接続できます。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ vagrant up
+</span><span class='line'>$ ssh vagrant
+</span><span class='line'>Password:</span></code></pre></td></tr></table></div></figure>
+
+
+<p>原因は、1.7よりデフォルトで$HOME/.vagrant.d/insecure_private_key を参照しなくなったようです。<code>vagrant ssh-config</code>コマンドで確認すると、Vagrantfileと同一ディレクトリに.vagrant/machines/default/virtualbox/private_keyとして自動生成されていました。</p>
+
+<p>対策としては、<code>Vagrantfile</code>に以下の設定を追加することで回避できます。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>config.ssh.insert_key = false</span></code></pre></td></tr></table></div></figure>
+
+
+<p>参考：<a href="https://github.com/geerlingguy/ansible-for-devops/issues/7">https://github.com/geerlingguy/ansible-for-devops/issues/7</a></p>
+
+<h3>自作VagrantBox作成時にpackageでこける</h3>
+
+<p>VagrantBoxを作成すべく<code>vagrant package</code>コマンドを実行すると、下記のようなargumentsエラーが発生しました。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ vagrant package --base vagrant-centos7
+</span><span class='line'>/opt/vagrant/embedded/gems/gems/vagrant-1.7.1/lib/vagrant/machine.rb:153:in `action': wrong number of arguments (2 for 1) (ArgumentError)
+</span><span class='line'>from /opt/vagrant/embedded/gems/gems/vagrant-1.7.1/plugins/commands/package/command.rb:83:in `package_vm'
+</span><span class='line'>from /opt/vagrant/embedded/gems/gems/vagrant-1.7.1/plugins/commands/package/command.rb:66:in `package_base'
+</span><span class='line'>from /opt/vagrant/embedded/gems/gems/vagrant-1.7.1/plugins/commands/package/command.rb:42:in `execute'
+</span><span class='line'>from /opt/vagrant/embedded/gems/gems/vagrant-1.7.1/lib/vagrant/cli.rb:42:in `execute'
+</span><span class='line'>from /opt/vagrant/embedded/gems/gems/vagrant-1.7.1/lib/vagrant/environment.rb:301:in `cli'
+</span><span class='line'>from /opt/vagrant/bin/../embedded/gems/gems/vagrant-1.7.1/bin/vagrant:174:in `&lt;main&gt;'</span></code></pre></td></tr></table></div></figure>
+
+
+<p>対策としては、<code>/opt/vagrant/embedded/gems/gems/vagrant-1.7.1/lib/vagrant/machine.rb</code>の153行目を以下のように修正します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>-     def action(name, **opts)
+</span><span class='line'>+     def action(name, opts)</span></code></pre></td></tr></table></div></figure>
+
+
+<p>参考：<a href="https://github.com/mitchellh/vagrant/issues/4962">https://github.com/mitchellh/vagrant/issues/4962</a></p>
+
+<hr />
+
+<p>以上、1.7.1へバージョンアップしたら(今の所)出くわした問題と対処方法でした。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[MacOSX YosemiteでIntelliJとGoLang Pluginを利用する]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/01/02/idea-and-golang-on-yosemite/"/>
+    <updated>2015-01-02T12:29:54+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/01/02/idea-and-golang-on-yosemite</id>
+    <content type="html"><![CDATA[<p>Yosemiteから<code>/etc/launchd.conf</code>でグローバルな環境変数が設定できなくなり、
+IntelliJ(以下IDEA)でGoプロジェクトを開く(作成する)度に警告メッセージが表示されるようになったので試行錯誤してみました。</p>
+
+<!-- more -->
+
+
+<ul>
+<li><p>Event Logにも下記のようなメッセージが出力されます。</p>
+
+<pre><code>Problem with env variables
+GOROOT environment variable is empty or could not be detected properly.
+This means that some tools like go run or go fmt might not run properly.
+See instructions on how to fix this. (show balloon)
+
+Problem with env variables
+GOPATH environment variable is empty or could not be detected properly.
+This means that some tools like go run or go fmt might not run properly.
+See instructions on how to fix this. (show balloon)
+</code></pre></li>
+</ul>
+
+
+<h3>結論から</h3>
+
+<p>まず結論から言うと、警告(Problem)メッセージは無視しても問題なく動作しました。  気持ち悪いですが、今はGo言語の学習が目的なのでとりあえず目を瞑ろうかと。。。</p>
+
+<p>というと、ネタにならないので試行錯誤した内容を書き添えていきたいと思います。</p>
+
+<h3>launchdによるグローバル環境変数の設定について</h3>
+
+<p>Mavericksのころは、警告メッセージの &ldquo;See <a href="https://github.com/go-lang-plugin-org/go-lang-idea-plugin/blob/master/Missing%20ENV.md">instructions</a> on how to fix this.&rdquo; に説明されている通り <code>/etc/launchd.conf</code> に以下の記述を追記することでMacの起動時にグローバル変数が設定され解決できました。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>setenv GOROOT /usr/local/opt/go/libexec
+</span><span class='line'>setenv GOPATH $HOME/.go</span></code></pre></td></tr></table></div></figure>
+
+
+<p>また、下記のコマンドをターミナルから実行することで、launchdで値が設定されていることを確認できます。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ sudo launchctl getenv GOROOT
+</span><span class='line'>/usr/local/opt/go/libexec
+</span><span class='line'>$ sudo launchctl getenv GOPATH
+</span><span class='line'>/User/yosuke/.go</span></code></pre></td></tr></table></div></figure>
+
+
+<p>しかし、Yosemiteにアップデートしてからは、<code>launchctl getenv</code>の出力が空になりグローバル変数が設定されていません。<br/>
+そこで、ターミナルから下記コマンド実行し手動設定を行ってみました。が、結果は変わらず。。。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ sudo launchctl setenv GOROOT $GOROOT
+</span><span class='line'>$ sudo launchctl setenv GOPATH $GOPATH</span></code></pre></td></tr></table></div></figure>
+
+
+<p>※事前に、.bash_profileでGOROOT/GOPATHが設定されていることが前提。
+詳細は<a href="https://golang.org/doc/install#install">Install the Go tools</a>を参照。</p>
+
+<p>ただし、新規にGo言語プロジェクトを作成した際にlaunchctlでGOROOT/GOPATHを指定しておくと、
+&ldquo;Tools&rdquo;->&ldquo;Go Tools&rdquo;->&ldquo;go plugin Debug internals&rdquo;->&ldquo;go env&#8221;でgo envの出力を表示することができました。(設定しない場合でも一度コードを実行すると同じ状態になるので問題ありませんでした。)</p>
+
+<h3>試行錯誤中に&#8221;brew upgrade&#8221;しちゃったら&hellip;</h3>
+
+<p>試行錯誤中に、brew updateをしてみたらGo言語の最新版1.4があったのでupgradeしてみました(それまでは1.3系)。
+結果としては、Goプロジェクトを作成する際に、Go SDKが選択できなくなりました。<br/>
+Go language support plugin(Ver 0.9.15.3)のRelease Noteをよく読むと、Go SDK (Go 1.2 on linux/mac/windows)と記載されています。
+もちろん、可能性を考慮して1.2を導入し直しましたが変化なし。</p>
+
+<p>なお、インストールは下記のように行いました。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ brew tap homebrew/versions
+</span><span class='line'>$ brew install go12</span></code></pre></td></tr></table></div></figure>
+
+
+<p>.bash_profileを以下のように設定</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>## go lang Setting
+</span><span class='line'>if [ -x "`which go`" ]; then
+</span><span class='line'>  export GOROOT=/usr/local/opt/go12/libexec
+</span><span class='line'>  export GOPATH=$HOME/.go
+</span><span class='line'>  export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+</span><span class='line'>fi</span></code></pre></td></tr></table></div></figure>
+
+
+<p>一応現在はgo1.2を利用しています。</p>
+
+<hr />
+
+<p>私の場合、メインの開発環境がIDEA(主にchef cookbookの作成に使用)なのでGo言語の開発環境にも利用しみましたが、
+今回色々調べてみてみると、IDEA+Go言語というのはそれなりに定評があるようです。実際、私も(警告が出る以外は)心地よく利用しています。</p>
+
+<p>YosemiteのJRE問題でIDEAが正規の状態で動作しないとか、&#8221;Go language support plugin&#8221;がメジャーリリースされていないとか。
+諸所の問題ひっくるめて今回のトラブルシュートは諦めることにしました。折を見て再チャレンジしてみようとは思います。<br/>
+※当初はIDEA13の結果のみで書こうと思いましたが、IDEA14にアップデートしても同様となりました。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Octopress備忘録(2) 記事の投稿]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2014/12/29/octopress-new-post/"/>
+    <updated>2014-12-29T14:25:01+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2014/12/29/octopress-new-post</id>
+    <content type="html"><![CDATA[<p><a href="http://marmotte.pyrites.jp/blog/2014/12/29/octopress-1st-setup/">前回</a>、GitHub Page + Octopressの環境を構築してみました。
+今回は記事の投稿方法についてメモを残します。</p>
+
+<!-- more -->
+
+
+<h3>記事の作成</h3>
+
+<p>以下のコマンドにより記事を作成できます。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ bundle exec rake new_post['post title']</span></code></pre></td></tr></table></div></figure>
+
+
+<p>rake new_postの引数 <code>post title</code> はURLでも利用するため必ず<strong><em>半角英字</em></strong>にする必要があります。</p>
+
+<p>実行すると、octopressのリポジトリ内の <code>source/_posts/YYYY-MM-DD-post-title.markdown</code> というファイルが作成されます。</p>
+
+<p>作成されたファイルの内容は以下のようになります。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>---
+</span><span class='line'>layout: post
+</span><span class='line'>title: "post title"
+</span><span class='line'>date: 2014-12-29 14:25:01 +0900
+</span><span class='line'>comments: true
+</span><span class='line'>categories:
+</span><span class='line'>---
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>記事タイトルの日本語化</h3>
+
+<p>先にも書きましたが、rake new_postコマンドの引数はmarkdownファイル生成のコマンドのため日本語は利用できません。
+日本語のタイトルを利用したい場合、生成されたファイルの <code>title:</code>の項目を編集します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>---
+</span><span class='line'>layout: post
+</span><span class='line'>title: "初めての記事"
+</span><span class='line'>date: 2014-12-29 14:25:01 +0900
+</span><span class='line'>comments: true
+</span><span class='line'>categories:
+</span><span class='line'>---
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>記事カテゴリの設定</h3>
+
+<p>記事のカテゴリ設定は、<code>categories:</code>に配列で記述します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>---
+</span><span class='line'>layout: post
+</span><span class='line'>title: "初めての記事"
+</span><span class='line'>date: 2014-12-29 14:25:01 +0900
+</span><span class='line'>comments: true
+</span><span class='line'>categories: ['カテゴリー1', ('カテゴリー2'...)]
+</span><span class='line'>---
+</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>記事本文の記述</h3>
+
+<p>記事本文は、rake new_postで作成された情報の末尾にmarkdown形式で記述していきます。</p>
+
+<h3>記事のプレビュー</h3>
+
+<p>作成した記事をGitHubに登録する前に下記のコマンドでプレビューすることができます。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ bundle exec rake preview</span></code></pre></td></tr></table></div></figure>
+
+
+<p>実行すると、<a href="http://localhost:4000">http://localhost:4000</a> にブラウザでアクセスすることで記事の内容が確認できます。</p>
+
+<h3>記事の投稿</h3>
+
+<p>作成した記事を投稿するには以下のコマンドで登録できます。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ bundle exec rake gen_deploy</span></code></pre></td></tr></table></div></figure>
+
+
+<p>なお、<code>rake gen_deploy</code>は下記のコマンドの実行と同等です。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ bundle exec rake generate
+</span><span class='line'>$ bundle exec rake deploy</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>編集したファイルは origin/sourceへ</h3>
+
+<p>つい忘れがちですが、せっかくGitHub Pageを利用しているので記事のソースや編集した設定ファイルはこまめにリポジトリにpushしましょう。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ git add .
+</span><span class='line'>$ git commit -m 'your message'
+</span><span class='line'>$ git push origin source</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>その他</h3>
+
+<p>Octopressの記事フォーマットは、markdown(MD)と呼ばれる記法を使用します。
+GitHub主軸の開発者であればおなじみの記法ですが、私もよく忘れるのでいつも参考しているサイトを紹介いたします。</p>
+
+<ul>
+<li><a href="http://kojika17.com/2013/01/starting-markdown.html">文章作成やメモ書きにも便利、Markdown記法</a></li>
+<li><a href="http://www.markdown.jp/">日本語Markdownユーザー会</a></li>
+<li><a href="http://qiita.com/Qiita/items/c686397e4a0f4f11683d">Markdown記法 チートシート</a></li>
+</ul>
+
+
+<p>※ちなみに、Octopress用のエディタは<a href="https://atom.io">Atom</a>を利用しています。
+GitHub謹製なのでMDのプレビュー機能やコミットされていないファイルがハイライトされるなどちょっと便利な機能が魅力です。</p>
+
+<hr />
+
+<p>とりあえず、今回は以上。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Octopress備忘録(1) インストール編]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2014/12/29/octopress-1st-setup/"/>
+    <updated>2014-12-29T13:19:03+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2014/12/29/octopress-1st-setup</id>
+    <content type="html"><![CDATA[<p>今更ですが、MD記法でブログを書きたいと思い立ち<a href="http://d.hatena.ne.jp/marmotte/">はてなブログ</a>から乗り換えのため、
+Octopressを始めてみました。<br/>
+手始めとして、GitHub Pages + Octopressの設定メモを残します。</p>
+
+<!-- more -->
+
+
+<h3>GitHub Pages用のGitHubレポジトリの作成</h3>
+
+<p><a href="https://help.github.com/articles/what-are-github-pages">GitHub Pages</a>は、WebページをGitHub上で無料でホスティングするサービスです。
+サイトを立ち上げるには、専用の<code>username.github.io</code>のリポジトリを作成する必要があります。</p>
+
+<p>作成はGitHubのアカウントホーム画面の右ペインの「Your repositories」から、<code>+ New repository</code>ボタンをクリックしPublicリポジトリを作成します。
+私の場合、GitHubアカウントは&#8221;marmotte&#8221;なので、リポジトリ名は<code>marmotte.github.io</code>となります。</p>
+
+<p><img src="http://marmotte.pyrites.jp/images/create_github_repo.png" alt="Creaet GitHub Pages Repository" /></p>
+
+<h3>Octopressの準備</h3>
+
+<p>細かい話は、<a href="http://octopress.org">Octopressのオフィシャルページ</a>を見ていただきたいのですが、コマンドだけまとめると以下になります。</p>
+
+<p>※Octopressを利用するにはrubyの実行環境が必要なため、私はrbenvを利用しています。</p>
+
+<ul>
+<li><a href="http://octopress.org/docs/setup/">セットアップ編</a></li>
+</ul>
+
+
+<p>octopressのソースをクローンし、gemなど必要な環境をインストールします。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ git clone git://github.com/imathis/octopress.git octopress
+</span><span class='line'>$ cd octopress
+</span><span class='line'>
+</span><span class='line'>$ gem install bundler
+</span><span class='line'>$ rbenv rehash
+</span><span class='line'>$ bundle install
+</span><span class='line'>
+</span><span class='line'>$ bundle exec rake install</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li><a href="http://octopress.org/docs/deploying/github/">GitHub Pagesデプロイ編</a></li>
+</ul>
+
+
+<p>GitHubページのセットアップを行います。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ bundle exec rake setup_github_pages
+</span><span class='line'>Enter the read/write url for your repository
+</span><span class='line'>(For example, 'git@github.com:your_username/your_username.github.io.git)
+</span><span class='line'>or 'https://github.com/your_username/your_username.github.io')
+</span><span class='line'>Repository url: git@github.com:marmotte/marmotte.github.io.git
+</span><span class='line'>Added remote git@github.com:marmotte/marmotte.github.io.git as origin
+</span><span class='line'>Set origin as default remote
+</span><span class='line'>Master branch renamed to 'source' for committing your blog source files
+</span><span class='line'>rm -rf _deploy
+</span><span class='line'>mkdir _deploy
+</span><span class='line'>cd _deploy
+</span><span class='line'>Initialized empty Git repository in /path/to/local-repo/octopress/_deploy/.git/
+</span><span class='line'>[master (root-commit) f5c9b53] Octopress init
+</span><span class='line'>1 file changed, 1 insertion(+)
+</span><span class='line'>create mode 100644 index.html
+</span><span class='line'>cd -
+</span><span class='line'>
+</span><span class='line'>---
+</span><span class='line'>## Now you can deploy to git@github.com:marmotte/marmotte.github.io.git with `rake deploy` ##</span></code></pre></td></tr></table></div></figure>
+
+
+
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ bundle exec rake generate
+</span><span class='line'>$ bundle exec rake deploy
+</span><span class='line'>
+</span><span class='line'>$ git add .
+</span><span class='line'>$ git commit -m 'your message'
+</span><span class='line'>$ git push origin source</span></code></pre></td></tr></table></div></figure>
+
+
+<ul>
+<li><a href="http://octopress.org/docs/configuring/">Octopressの設定編</a></li>
+</ul>
+
+
+<p>_config.yml ファイルに手を加えるわけですが、とりあえず私が設定した項目は以下になります。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>url:                # For rewriting urls for RSS, etc
+</span><span class='line'>title:              # Used in the header and title tags
+</span><span class='line'>subtitle:           # A description used in the header
+</span><span class='line'>author:             # Your name, for RSS, Copyright, Metadata
+</span><span class='line'>github_user:        # List your github repositories in the sidebar(3rd Party Setting)
+</span><span class='line'>twitter_user:       # Add a button for sharing of posts and pages on Twitter(3rd Party Setting)
+</span><span class='line'>facebook_like: true # Add a Facebook like button(3rd Party Setting)</span></code></pre></td></tr></table></div></figure>
+
+
+<p>設定後、下記コマンドを実行しGitHub Pagesに反映させます。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ bundle exec rake gen_deploy</span></code></pre></td></tr></table></div></figure>
+
+
+<p>また、編集したファイルなどをGitリポジトリに保存するには以下のコマンドを実行します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>$ git add .
+</span><span class='line'>$ git commit -m 'your message'
+</span><span class='line'>$ git push origin source</span></code></pre></td></tr></table></div></figure>
+
+
+<hr />
+
+<p>細かな設定は他にもあると思いますが、一旦ここまでにしておきます。</p>
+]]></content>
+  </entry>
+  
+</feed>

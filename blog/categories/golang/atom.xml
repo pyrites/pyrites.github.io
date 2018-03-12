@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Golang | re:inventing the wheel]]></title>
+  <link href="http://marmotte.pyrites.jp/blog/categories/golang/atom.xml" rel="self"/>
+  <link href="http://marmotte.pyrites.jp/"/>
+  <updated>2018-03-12T12:29:41+09:00</updated>
+  <id>http://marmotte.pyrites.jp/</id>
+  <author>
+    <name><![CDATA[Yosuke Yamamoto]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[MacOSX YosemiteでIntelliJとGoLang Pluginを利用する]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/01/02/idea-and-golang-on-yosemite/"/>
+    <updated>2015-01-02T12:29:54+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/01/02/idea-and-golang-on-yosemite</id>
+    <content type="html"><![CDATA[<p>Yosemiteから<code>/etc/launchd.conf</code>でグローバルな環境変数が設定できなくなり、
+IntelliJ(以下IDEA)でGoプロジェクトを開く(作成する)度に警告メッセージが表示されるようになったので試行錯誤してみました。</p>
+
+<!-- more -->
+
+
+<ul>
+<li><p>Event Logにも下記のようなメッセージが出力されます。</p>
+
+<pre><code>Problem with env variables
+GOROOT environment variable is empty or could not be detected properly.
+This means that some tools like go run or go fmt might not run properly.
+See instructions on how to fix this. (show balloon)
+
+Problem with env variables
+GOPATH environment variable is empty or could not be detected properly.
+This means that some tools like go run or go fmt might not run properly.
+See instructions on how to fix this. (show balloon)
+</code></pre></li>
+</ul>
+
+
+<h3>結論から</h3>
+
+<p>まず結論から言うと、警告(Problem)メッセージは無視しても問題なく動作しました。  気持ち悪いですが、今はGo言語の学習が目的なのでとりあえず目を瞑ろうかと。。。</p>
+
+<p>というと、ネタにならないので試行錯誤した内容を書き添えていきたいと思います。</p>
+
+<h3>launchdによるグローバル環境変数の設定について</h3>
+
+<p>Mavericksのころは、警告メッセージの &ldquo;See <a href="https://github.com/go-lang-plugin-org/go-lang-idea-plugin/blob/master/Missing%20ENV.md">instructions</a> on how to fix this.&rdquo; に説明されている通り <code>/etc/launchd.conf</code> に以下の記述を追記することでMacの起動時にグローバル変数が設定され解決できました。</p>
+
+<pre><code>setenv GOROOT /usr/local/opt/go/libexec
+setenv GOPATH $HOME/.go
+</code></pre>
+
+<p>また、下記のコマンドをターミナルから実行することで、launchdで値が設定されていることを確認できます。</p>
+
+<pre><code>$ sudo launchctl getenv GOROOT
+/usr/local/opt/go/libexec
+$ sudo launchctl getenv GOPATH
+/User/yosuke/.go
+</code></pre>
+
+<p>しかし、Yosemiteにアップデートしてからは、<code>launchctl getenv</code>の出力が空になりグローバル変数が設定されていません。<br/>
+そこで、ターミナルから下記コマンド実行し手動設定を行ってみました。が、結果は変わらず。。。</p>
+
+<pre><code>$ sudo launchctl setenv GOROOT $GOROOT
+$ sudo launchctl setenv GOPATH $GOPATH
+</code></pre>
+
+<p>※事前に、.bash_profileでGOROOT/GOPATHが設定されていることが前提。
+詳細は<a href="https://golang.org/doc/install#install">Install the Go tools</a>を参照。</p>
+
+<p>ただし、新規にGo言語プロジェクトを作成した際にlaunchctlでGOROOT/GOPATHを指定しておくと、
+&ldquo;Tools&rdquo;->&ldquo;Go Tools&rdquo;->&ldquo;go plugin Debug internals&rdquo;->&ldquo;go env&#8221;でgo envの出力を表示することができました。(設定しない場合でも一度コードを実行すると同じ状態になるので問題ありませんでした。)</p>
+
+<h3>試行錯誤中に&#8221;brew upgrade&#8221;しちゃったら&hellip;</h3>
+
+<p>試行錯誤中に、brew updateをしてみたらGo言語の最新版1.4があったのでupgradeしてみました(それまでは1.3系)。
+結果としては、Goプロジェクトを作成する際に、Go SDKが選択できなくなりました。<br/>
+Go language support plugin(Ver 0.9.15.3)のRelease Noteをよく読むと、Go SDK (Go 1.2 on linux/mac/windows)と記載されています。
+もちろん、可能性を考慮して1.2を導入し直しましたが変化なし。</p>
+
+<p>なお、インストールは下記のように行いました。</p>
+
+<pre><code>$ brew tap homebrew/versions
+$ brew install go12
+</code></pre>
+
+<p>.bash_profileを以下のように設定</p>
+
+<pre><code>## go lang Setting
+if [ -x "`which go`" ]; then
+  export GOROOT=/usr/local/opt/go12/libexec
+  export GOPATH=$HOME/.go
+  export PATH=$PATH:$GOROOT/bin:$GOPATH/bin
+fi
+</code></pre>
+
+<p>一応現在はgo1.2を利用しています。</p>
+
+<hr />
+
+<p>私の場合、メインの開発環境がIDEA(主にchef cookbookの作成に使用)なのでGo言語の開発環境にも利用しみましたが、
+今回色々調べてみてみると、IDEA+Go言語というのはそれなりに定評があるようです。実際、私も(警告が出る以外は)心地よく利用しています。</p>
+
+<p>YosemiteのJRE問題でIDEAが正規の状態で動作しないとか、&#8221;Go language support plugin&#8221;がメジャーリリースされていないとか。
+諸所の問題ひっくるめて今回のトラブルシュートは諦めることにしました。折を見て再チャレンジしてみようとは思います。<br/>
+※当初はIDEA13の結果のみで書こうと思いましたが、IDEA14にアップデートしても同様となりました。</p>
+]]></content>
+  </entry>
+  
+</feed>

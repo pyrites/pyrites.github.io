@@ -1,0 +1,415 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Centos | re:inventing the wheel]]></title>
+  <link href="http://marmotte.pyrites.jp/blog/categories/centos/atom.xml" rel="self"/>
+  <link href="http://marmotte.pyrites.jp/"/>
+  <updated>2018-03-12T12:29:41+09:00</updated>
+  <id>http://marmotte.pyrites.jp/</id>
+  <author>
+    <name><![CDATA[Yosuke Yamamoto]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[docker-registryによるプライベートDockerリポジトリの作成]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/02/23/setting-up-authentication-for-docker-registry/"/>
+    <updated>2015-02-23T00:04:52+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/02/23/setting-up-authentication-for-docker-registry</id>
+    <content type="html"><![CDATA[<p><a href="http://deeeet.com/writing/2014/10/02/docker-private-registry-auth/">こちらの記事</a>を元に、認証付きのプライベートなDockerリポジトリを作成しました。
+リンクにも書かれていますが、<code>docker login</code>はSSL通信とBasic認証が必要なため、オレオレCA+Nginxの環境を試してみました。</p>
+
+<!-- more -->
+
+
+<h2>SSLプライベート認証局の作成</h2>
+
+<p>CentOS7のデフォルトのOpenSSLを利用して作成しました。設定ファイルは<code>/etc/pki/tls/openssl.cnf</code>にあります。</p>
+
+<h3>オレオレCAの作成</h3>
+
+<p>私の<a href="http://d.hatena.ne.jp/marmotte/20100203">旧ブログ</a>で簡単に説明していますが、折をみて改めてオレオレCAの記事は書きたいと思います。</p>
+
+<pre><code># DEFALT_CA_PATH=/etc/pki/CA
+# mkdir -p ${DEFALT_CA_PATH}/private
+# mkdir -p ${DEFALT_CA_PATH}/newcerts
+# touch ${DEFALT_CA_PATH}/index.txt
+# touch ${DEFALT_CA_PATH}/serial
+# echo 00 &gt; ${DEFALT_CA_PATH}/serial
+# openssl req -new -x509 -newkey rsa:2048 -out ${DEFALT_CA_PATH}/cacert.pem -keyout ${DEFALT_CA_PATH}/private/cakey.pem
+</code></pre>
+
+<h3>オレオレCAをOSで信頼できる証明局する</h3>
+
+<p>DockerAIPを実行するサーバ(Dockerホスト)側で信頼された認証局である必要があるため、オレオレCAの証明書をOSに登録します。
+※ここでは、オレオレCAとDockerホストが同じマシンにあることを前提にしています。</p>
+
+<pre><code># cat /etc/pki/CA/cacert.pem &gt;&gt; /etc/ssl/certs/ca-bundle.crt
+</code></pre>
+
+<p>なお、設定後はDockerデーモンを再起動する必要があります。</p>
+
+<pre><code># systemctl restart docker
+</code></pre>
+
+<h2>docker-registryを起動する</h2>
+
+<p>とりあえず、docker-registryの<a href="https://github.com/docker/docker-registry/tree/master#quick-start">QuickStart</a>に従って立ち上げます。</p>
+
+<pre><code># docker run -d -p 5000:5000 registry
+</code></pre>
+
+<h2>Nginxの設定を行う。</h2>
+
+<h3>Nginxのインストール</h3>
+
+<p>好みの問題ですが、Nginxはオフィシャルのyumリポジトリからインストールしました。
+参考: <a href="http://wiki.nginx.org/Install">Official Red Hat/CentOS packages</a></p>
+
+<pre><code># vi /etc/yum.repos.d/nginx
+
+[nginx]
+name=nginx repo
+baseurl=http://nginx.org/packages/centos/$releasever/$basearch/
+gpgcheck=0
+enabled=1
+</code></pre>
+
+<h3>docker-registry用のNginxリバースプロクシの設定ファイルを配置する</h3>
+
+<p>GitHubのリポジトリよりNginxの設定ファイルを配置します。</p>
+
+<pre><code># git clone https://github.com/docker/docker-registry
+# cp docker-registry/contrib/nginx/nginx_1-3-9.conf /etc/nginx/conf.d/docker-registry-nginx.conf
+# cp docker-registry/contrib/nginx/docker-registry.conf /etc/nginx/
+</code></pre>
+
+<p>設定をコピーしらた、<code>/etc/nginx/conf.d/docker-registry-nginx.conf</code>のServerNameなどを自分の環境にあわせ修正します。</p>
+
+<h3>SSLの鍵ファイル作成</h3>
+
+<p>鍵ファイルはNginxの設定に合わせて作成しています。</p>
+
+<pre><code># mkdir -p /etc/ssl/private/
+# mkdir -p /etc/ssl/csr
+# openssl req -new -keyout /etc/ssl/private/docker-registry -out /etc/ssl/csr/docker-registry
+</code></pre>
+
+<p>お決まりですが、鍵ファイルのパスフレーズを解除します。</p>
+
+<pre><code># mv /etc/ssl/private/docker-registry /etc/ssl/private/docker-registry.org
+# openssl rsa -in /etc/ssl/private/docker-registry.org -out //etc/ssl/private/docker-registry
+</code></pre>
+
+<p>オレオレCAで認証します。</p>
+
+<pre><code># openssl ca -out /etc/ssl/certs/docker-registry -infiles /etc/ssl/csr/docker-registry
+</code></pre>
+
+<h3>ベーシック認証用のファイルを作成</h3>
+
+<pre><code># yum -y install httpd-tools
+# htpasswd -c /etc/nginx/docker-registry.htpasswd hoge
+</code></pre>
+
+<h3>Nginxの起動</h3>
+
+<pre><code># nginx -t
+# systemctl enable nginx
+# systemctl start nginx
+</code></pre>
+
+<h2>プライベートDockerリポジトリにログインする</h2>
+
+<p>ここでは、NginxでServerName(SSLサーバ証明書も)をlocalhostとした時の例です。</p>
+
+<pre><code># docker login https://localhost
+</code></pre>
+
+<hr />
+
+<p>以上です。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[CentOS7のDocker Imageを自作する]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/01/15/create-docker-image-of-centos7/"/>
+    <updated>2015-01-15T13:25:13+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/01/15/create-docker-image-of-centos7</id>
+    <content type="html"><![CDATA[<p>これまでCentOSでdockerイメージをを自作する際は、febootstrapというコマンドを利用していましたが、
+CentOS7ではepelからもパッケージがなくなっていたので調べてみました。</p>
+
+<!-- more -->
+
+
+<h2>febootstrapからsuperminに変更された</h2>
+
+<p>背景までは調べていませんが、<a href="http://people.redhat.com/~rjones/supermin/">このページ</a>を見ると
+febootstrapはsuperminに変わったようです。</p>
+
+<blockquote><p>This tool was formerly known as febootstrap.</p></blockquote>
+
+<h2>CentOS7にsuperminをインストールする</h2>
+
+<p><a href="http://qiita.com/tukiyo3/items/7a5fe5a13d98740db1eb">参考にしたページ</a>にも書いてありますが、
+yumのパッケージはバージョンが古いためソースから5.1.11をインストールしました。<br/>
+※yumでは4.14でオプションがかなり異なります。</p>
+
+<p>先ずはREADMEに従い、コンパイルに必要な環境をパッケージからインストールします。</p>
+
+<pre><code># yum install gcc gawk ocaml ocaml-findlib perl-Pod-Perldoc e2fsprogs e2fsprogs-devel e2fsprogs-libs e2fsprogs-static glibc-static yum-utils rpm-devel
+</code></pre>
+
+<p>なお、READMEには記載されていませんでしたが、RPM系の環境用にコンパイルする場合、<code>rpm-devel</code>を
+インストールしておかないと<code>supermin --prepare</code>時に以下のエラーメッセージで処理が止まってしまいます。</p>
+
+<ul>
+<li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=1082044">CentOS 6.4: Supermin fails to detect RPM based distro</a></li>
+</ul>
+
+
+<pre><code># /usr/local/bin/supermin --prepare yum -o supermin.d
+supermin: could not detect package manager used by this system or distro.
+
+If this is a new Linux distro, or not Linux, or a Linux distro that uses
+an unusual packaging format then you may need to port supermin.  If
+you are expecting that supermin should work on this system or distro
+then it may be that the package detection code is not working.
+
+To list which package handlers are compiled into this version of
+supermin, do:
+
+supermin --list-drivers
+</code></pre>
+
+<p>コンパイルとインストールは一般的ですが、以下の手順で行います。</p>
+
+<pre><code># cd /usr/local/src
+# wget http://libguestfs.org/download/supermin/supermin-5.1.11.tar.gz
+# tar xvzf supermin-5.1.11.tar.gz
+# cd supermin-5.1.11
+# ./configure
+# make
+# make install
+</code></pre>
+
+<p>インストールが終わったら、念のため以下のコマンドを確認してください。</p>
+
+<pre><code># /usr/local/bin/supermin --list-drivers
+arch/pacman     not-detected
+debian/dpkg     not-detected
+mageia/rpm      not-detected
+opensuse/rpm    not-detected
+fedora/rpm      detected
+</code></pre>
+
+<p>出力に<code>fedora/rpm      detected</code>があれば大丈夫です。</p>
+
+<h2>CentOS7のDocker Imageの作成</h2>
+
+<p><a href="http://qiita.com/MiCHiLU/items/762275df727b60c3ff41">こちらの記事</a>を参考に、chrootイメージを作成します。</p>
+
+<pre><code># /usr/local/bin/supermin --prepare yum -o supermin.d
+# /usr/local/bin/supermin --build --format chroot supermin.d -o appliance.d
+</code></pre>
+
+<pre><code># cd appliance.d
+# mv usr/share/locale/en usr/share/locale/en_US tmp
+# rm -rf usr/share/locale/*
+# mv tmp/en tmp/en_US usr/share/locale/
+# mv usr/share/i18n/locales/en_US tmp
+# rm -rf usr/share/i18n/locales/*
+# mv tmp/en_US usr/share/i18n/locales/
+# cd ..
+</code></pre>
+
+<p>上記で作成すると <code>$releasever</code> がうまく取得できず、yumが動かなかったのでもう一手間加えます。</p>
+
+<pre><code># cd appliance.d
+# echo 7 &gt; etc/yum/vars/releasever
+# cd ..
+</code></pre>
+
+<p>dockerイメージにするため、tarで固めます。<br/>
+xz形式で圧縮するのが一般的なようなので、以下のようにします。</p>
+
+<pre><code># tar --numeric-owner -Jcpf centos7-zero.tar.xz -C appliance.d .
+</code></pre>
+
+<p>今回利用した docker 1.3.2 では<code>docker import</code>に問題があるようなので圧縮なしで作成しました。</p>
+
+<ul>
+<li><a href="https://github.com/docker/docker/issues/9327">Docker load fails to load xz-compressed image #9327</a></li>
+</ul>
+
+
+<pre><code># tar --numeric-owner -cpf centos7-zero.tar -C appliance.d .
+</code></pre>
+
+<p>ちなみに、1.3.2にインストールすると以下のエラーになります。</p>
+
+<pre><code># cat centos7-zero.tar.xz | docker import - local/centos7-zero
+2015/01/15 09:37:45 Error: ApplyLayer exit status 1 exec: "xz": executable file not found in $PATH
+</code></pre>
+
+<h2>作成したイメージをdockerにインポートする</h2>
+
+<p>以下のコマンドで、docker imageとしてimportします。<br/>
+※本来であれば、xz形式でも<code>docker import</code>が解いてくれます。</p>
+
+<pre><code># cat centos7-zero.tar | docker import - local/centos7-zero
+</code></pre>
+
+<p>以下のようにして、イメージが登録されたことを確認します。</p>
+
+<pre><code># docker images
+REPOSITORY          TAG                 IMAGE ID            CREATED             VIRTUAL SIZE
+local/centos7-zero   latest              cb1d0872e89a        45 minutes ago      136.4 MB
+</code></pre>
+
+<h2>その他</h2>
+
+<p>上記手順で作成したイメージは大変シンプルでdocker向きですが、本当に何もパッケージが入っていないです。
+そこで、centosのオフィシャルイメージにインストールされていたパッケージから<code>supermin --prepare</code>を書いてみました。</p>
+
+<pre><code># /usr/local/bin/supermin --prepare audit-libs basesystem bash binutils bzip2-libs ca-certificates centos-release chkconfig coreutils cpio cracklib cracklib-dicts curl cyrus-sasl-lib dbus-libs device-mapper device-mapper-libs diffutils elfutils-libelf expat fakesystemd file file-libs filesystem findutils gawk gdbm glib2 glibc glibc-common gmp gnupg2 gpgme grep groff-base gzip hardlink info iproute iptables iptables-services iputils keyutils-libs kmod-libs kpartx krb5-libs less libacl libassuan libattr libblkid libcap libcap-ng libcom_err libcroco libcurl libdb libdb-utils libffi libgcc libgcrypt libgomp libgpg-error libidn libmnl libmount libnetfilter_conntrack libnfnetlink libpwquality libselinux libsemanage libsepol libssh2 libstdc++ libtasn1 libunistring libuser libutempter libuuid libverto libxml2 lua ncurses ncurses-base ncurses-libs nspr nss nss-softokn nss-softokn-freebl nss-sysinit nss-tools nss-util openldap openssl-libs p11-kit p11-kit-trust pam pcre pinentry pkgconfig popt procps-ng pth pygpgme pyliblzma python python-iniparse python-libs python-pycurl python-urlgrabber pyxattr readline rootfiles rpm rpm-build-libs rpm-libs rpm-python sed setup shadow-utils shared-mime-info sqlite systemd-libs tzdata ustr util-linux vim-minimal which xz xz-libs yum yum-metadata-parser yum-plugin-fastestmirror zlib -o supermin.d
+</code></pre>
+
+<p>また、必要であればDockerfileを使って、Minimal Installしても良いと思います。</p>
+
+<pre><code># CentOS7 Minimal Install Image
+#
+# VERSION 20150115
+
+FROM       local/centos7-zero
+MAINTAINER Yosuke Yamamoto
+
+RUN yum -y groupinstall "Minimal Install"; yum clean
+</code></pre>
+
+<p>この辺りは、使用場面によっても異なってくると思うので深く追求はしません。</p>
+
+<h3>参考</h3>
+
+<ul>
+<li><a href="http://qiita.com/hnakamur/items/8e3136488fcfe763802c">docker用にCentOS 6.5のbase imageを自作する</a></li>
+<li><a href="http://qiita.com/tukiyo3/items/7a5fe5a13d98740db1eb">supermin (febootstrap後継)</a></li>
+<li><a href="http://qiita.com/MiCHiLU/items/762275df727b60c3ff41">fedoraのDockerイメージを作成する</a></li>
+<li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=1082044">CentOS 6.4: Supermin fails to detect RPM based distro</a></li>
+<li><a href="https://github.com/docker/docker/issues/9327">Docker load fails to load xz-compressed image</a></li>
+</ul>
+
+
+<hr />
+
+<p>以上です。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[CentOS7にDockerをインストールし、TCP経由でAPIを利用できるようにする]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/01/13/docker-on-centos7/"/>
+    <updated>2015-01-13T23:27:23+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/01/13/docker-on-centos7</id>
+    <content type="html"><![CDATA[<p>CentOS7になり、Dockerが標準のyumリポジトリに追加されていたのでインストールメモです。</p>
+
+<!-- more -->
+
+
+<h2>インストールする</h2>
+
+<p>公式ドキュメントの<a href="https://docs.docker.com/installation/centos/">Installing Docker - CentOS-7</a>にもありますが、</p>
+
+<pre><code>$ sudo yum install docker
+</code></pre>
+
+<p>にてインストールすることができます。<br/>
+ただし、2015/01/13時点ではちょっと古くVersionは1.3.2(最新は1.4.1)でした。</p>
+
+<p>dockerを起動するには、以下のようにして起動します。</p>
+
+<pre><code>$ sudo systemctl start docker
+</code></pre>
+
+<h2>TCP経由でRemoteAPIを利用できるようにする。</h2>
+
+<p>デフォルトではfdのみなのでローカルホストからしかdockerコマンドを利用できませんが、TCPソケットを有効にして
+リモートマシンからもコントロールできるようにします。<br/>
+ドキュメント上、以前は Port:4243を使用していましたが、メジャーバージョンから Port:2375に変わっています。</p>
+
+<p>有効にするには、<code>/etc/sysconfig/docker</code>のOPTIONSに<code>-H tcp://0.0.0.0:2375</code>を追加します。</p>
+
+<pre><code># Modify these options if you want to change the way the docker daemon runs
+OPTIONS=--selinux-enabled -H fd:// -H tcp://0.0.0.0:2375
+</code></pre>
+
+<pre><code>$ sudo systemctl stop docker
+$ sudo systemctl start docker
+</code></pre>
+
+<p>なお、<a href="https://coreos.com/docs/launching-containers/building/customizing-docker/">CoreOSのドキュメント</a>ではデーモンの起動オプションではなく、<code>/etc/systemd/system/docker-tcp.socket</code>ファイルを作成し下記ように記述します。</p>
+
+<pre><code>[Unit]
+Description=Docker Socket for the API
+
+[Socket]
+ListenStream=2375
+BindIPv6Only=both
+Service=docker.service
+
+[Install]
+WantedBy=sockets.target
+</code></pre>
+
+<pre><code>$ sudo systemctl enable docker
+$ sudo systemctl enable docker-tcp.socket
+$ sudo systemctl stop docker
+$ sudo systemctl start docker-tcp.socket
+$ sudo systemctl start docker
+</code></pre>
+
+<p>まだsystemdの知見が低いため、どちらの設定が良いのかは調査中です。</p>
+
+<h2>TCP経由でリモートのdockerをコントロールする</h2>
+
+<p>基本的にはdocker cliの利用方法は変わりませんが、ホスト指定が必要になります。</p>
+
+<pre><code>docker -H tcp://127.0.0.1:2375 ps
+</code></pre>
+
+<p>なお、毎回 <code>-H tcp://(接続先ホスト):(ポート番号)</code> を入力するのは面倒くさいので環境変数<code>DOCKER_HOST</code>を設定します。
+bash系であれば以下のように設定します。</p>
+
+<pre><code>export DOCKER_HOST=tcp://localhost:2375
+</code></pre>
+
+<h2>どうしても最新版Dockerを使用したい場合</h2>
+
+<p>インストレーションドキュメントの<a href="https://docs.docker.com/installation/binaries/">Binaries</a>にもありますが、
+以下のようにして最新版のバイナリを取得することができます。</p>
+
+<pre><code>$ wget https://get.docker.com/builds/Linux/x86_64/docker-latest -O docker
+$ chmod +x docker
+</code></pre>
+
+<p>ちゃんとした動作確認はしていませんが、ダウンロードしたバイナリを/usr/bin/dockerに上書きするとバージョンは上がりました。</p>
+
+<pre><code>$ sudo systemctl stop docker
+$ sudo mv /usr/bin/docker /usr/bin/docker-1.3.2
+$ sudo mv ./docker /usr/bin/docker
+$ sudo systemctl start docker
+</code></pre>
+
+<p>とはいえ、無理やりバージョンを変えているので、美しくはないですね。。。<br/>
+どうしても最新を利用したい場合はSRPMから自作したほうが良いと思います。</p>
+
+<hr />
+
+<p>とりあえず、本エントリーは以上です。</p>
+]]></content>
+  </entry>
+  
+</feed>

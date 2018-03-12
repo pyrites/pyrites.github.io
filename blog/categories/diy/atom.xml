@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Diy | re:inventing the wheel]]></title>
+  <link href="http://marmotte.pyrites.jp/blog/categories/diy/atom.xml" rel="self"/>
+  <link href="http://marmotte.pyrites.jp/"/>
+  <updated>2018-03-12T12:29:41+09:00</updated>
+  <id>http://marmotte.pyrites.jp/</id>
+  <author>
+    <name><![CDATA[Yosuke Yamamoto]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[(DIY)RaspbianにWebVirtMgrを入れてみた]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/10/06/webvirtmgr-in-raspberrypi/"/>
+    <updated>2015-10-06T22:43:50+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/10/06/webvirtmgr-in-raspberrypi</id>
+    <content type="html"><![CDATA[<p>最近エンジニアらしい活動をおろそかにしていた為、自宅の検証環境整備をはじめました。</p>
+
+<p>使っていないThinkPad X61をKVMサーバとしたのですが、VPNサーバ程度にしか使用していない
+RaspberryPi2をフロントのGUIにおいて仮想マシン管理しようと画策して見ました。</p>
+
+<!-- more -->
+
+
+<h2>なぜWebVirtMgr？</h2>
+
+<p>トレンド的にはRHEVと統合されたoVirtの方が面白そうなのですが、ARM(RaspberryPi)で動かすには手間が掛かりそうだなという事でパス。
+Djangoベースで開発されたWebVirtMgrを利用する事にしました。</p>
+
+<p>WebVirtMgrはインスタンスの作成からVNCコンソールの提供や、仮想マシンのクローンなど必要な機能は
+一通り揃っているので自宅使いには十二分だと思います。<br>
+何よりスマフォからも操作しやすいので、移動時間でも弄りやすく便利です。</p>
+
+<h2>早速インストール</h2>
+
+<p>今回、Raspbianにインストールした訳ですが、<a href="https://github.com/retspen/webvirtmgr/wiki/Install-WebVirtMgr">公式サイト</a>のDebian向けのインストレーションで簡単に導入できました。<br>
+&ldquo;Install WebVirtMgr&#8221;に記載されている通りに実行するだけで、何の問題もなくインストールできました。</p>
+
+<p><strong><em> ※確実に、公式ドキュメントの方が精度が高いので、詳細は<a href="https://github.com/retspen/webvirtmgr/wiki/Install-WebVirtMgr">こちら</a>をご覧ください。 </em></strong></p>
+
+<h3>必要なパッケージをインストールします。</h3>
+
+<pre><code>$ sudo apt-get install git python-pip python-libvirt python-libxml2 novnc supervisor nginx
+</code></pre>
+
+<h3>続いて、webvirtmgrをcloneし、Djangoと必要なライブラリー、初期設定を実行します。</h3>
+
+<pre><code>$ git clone git://github.com/retspen/webvirtmgr.git
+$ cd webvirtmgr
+$ sudo pip install -r requirements.txt
+$ ./manage.py syncdb
+$ ./manage.py collectstatic
+</code></pre>
+
+<h3>Nginxを設定します。</h3>
+
+<p>ドキュメントだと、<code>/var/www/webvirtmgr</code> 以下をドキュメントルートにする様なので合わせました。</p>
+
+<pre><code>$ sudo mkdir -p /var/www
+$ sudo cd ..
+$ sudo mv webvirtmgr /var/www
+$ sudo chown -R www-data:www-data /var/www/webvirtmgr
+</code></pre>
+
+<p>Nginxの設定ファイル <code>webvirtmgr.conf</code> を <code>/etc/nginx/conf.d/</code> に配置します。<br>
+内容をみるとわかると思いますが、デフォルトサーバとして定義しているので状況に合わせて調整が必要です。
+公式ドキュメントにはちゃんとnginx.conf側のコメントアウト手順も記載されていました。</p>
+
+<pre><code>server {
+    listen 80 default_server;
+
+    server_name $hostname;
+    #access_log /var/log/nginx/webvirtmgr_access_log;
+
+    location /static/ {
+        root /var/www/webvirtmgr/webvirtmgr;
+        expires max;
+    }
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-for $proxy_add_x_forwarded_for;
+        proxy_set_header Host $host:$server_port;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_connect_timeout 600;
+        proxy_read_timeout 600;
+        proxy_send_timeout 600;
+        client_max_body_size 1024M; # Set higher depending on your needs
+    }
+}
+</code></pre>
+
+<h3>supervisorのセットアップ</h3>
+
+<p>まずは、novncをinsservを利用してnovncを実行するようにします。</p>
+
+<pre><code>$ sudo service novnc stop
+$ sudo insserv -r novnc
+$ sudo vi /etc/insserv/overrides/novnc
+#!/bin/sh
+### BEGIN INIT INFO
+# Provides:          nova-novncproxy
+# Required-Start:    $network $local_fs $remote_fs $syslog
+# Required-Stop:     $remote_fs
+# Default-Start:     
+# Default-Stop:      
+# Short-Description: Nova NoVNC proxy
+# Description:       Nova NoVNC proxy
+### END INIT INFO
+</code></pre>
+
+<p>設定ファイル <code>webvirtmgr.conf</code> を <code>/etc/supervisor/conf.d</code> に記述します。</p>
+
+<pre><code>[program:webvirtmgr]
+command=/usr/bin/python /var/www/webvirtmgr/manage.py run_gunicorn -c /var/www/webvirtmgr/conf/gunicorn.conf.py
+directory=/var/www/webvirtmgr
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/supervisor/webvirtmgr.log
+redirect_stderr=true
+user=www-data
+
+[program:webvirtmgr-console]
+command=/usr/bin/python /var/www/webvirtmgr/console/webvirtmgr-console
+directory=/var/www/webvirtmgr
+autostart=true
+autorestart=true
+stdout_logfile=/var/log/supervisor/webvirtmgr-console.log
+redirect_stderr=true
+user=www-data
+</code></pre>
+
+<p>設定できたら、supervisorを再起動します。</p>
+
+<pre><code>$ sudo service supervisor stop
+$ sudo service supervisor start
+</code></pre>
+
+<p>っと、以上でインストールは完了しました。</p>
+
+<h2>実際使ってみて&hellip;</h2>
+
+<p>やりたい事と手間暇を考えると正直これで満足とい言った状況です。<br>
+ただ、WebVirtMgrとKVMサーバを分けた事で起こる弊害として、ISO用のストレージプールが
+KVMホストを向いているため、画面からISOファイルをアップロードしても反映されない事でしょうか。</p>
+
+<p>今は作成したISO用のストレージプールと同じパスにファイルを置いて凌いでいますが、
+本格的に使いたいと思うのであればNFSなど利用して共有する必要があると思います。</p>
+
+<p>余談ですが、<code>aptitude search ocfs</code> とかするとOCFS2のパッケージがあるようなので、
+気が向いたら RaspberryPi2でiSCSIサーバでも試してみようかと思います。</p>
+
+<hr />
+
+<p>以上です。</p>
+]]></content>
+  </entry>
+  
+</feed>

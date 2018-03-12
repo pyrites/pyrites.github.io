@@ -1,0 +1,557 @@
+
+<!DOCTYPE html>
+<!--[if IEMobile 7 ]><html class="no-js iem7"><![endif]-->
+<!--[if lt IE 9]><html class="no-js lte-ie8"><![endif]-->
+<!--[if (gt IE 8)|(gt IEMobile 7)|!(IEMobile)|!(IE)]><!--><html class="no-js" lang="en"><!--<![endif]-->
+<head>
+  <meta charset="utf-8">
+  <title>Lua-nginx-module(ngx_lua)をインストールしてみた - re:inventing the wheel</title>
+  <meta name="author" content="Yosuke Yamamoto">
+
+  
+  <meta name="description" content="lua-nginx-module(ngx_lua)をインストールしてみた">
+  <meta name="keywords" content="NGINX, lua-nginx-module, ngx_lua">
+
+  <!-- http://t.co/dKP3o1e -->
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  
+  <link rel="canonical" href="http://marmotte.pyrites.jp/blog/2015/10/17/build-for-nginx-plus-lua">
+  <link href="/favicon.png" rel="icon">
+  <link href="/stylesheets/screen.css" media="screen, projection" rel="stylesheet" type="text/css">
+  <link href="/atom.xml" rel="alternate" title="re:inventing the wheel" type="application/atom+xml">
+  <script src="/javascripts/modernizr-2.0.js"></script>
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>!window.jQuery && document.write(unescape('%3Cscript src="./javascripts/libs/jquery.min.js"%3E%3C/script%3E'))</script>
+  <script src="/javascripts/octopress.js" type="text/javascript"></script>
+  <!--Fonts from Google"s Web font directory at http://google.com/webfonts -->
+<link href="//fonts.googleapis.com/css?family=PT+Serif:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+<link href="//fonts.googleapis.com/css?family=PT+Sans:regular,italic,bold,bolditalic" rel="stylesheet" type="text/css">
+
+  
+  <script type="text/javascript">
+    var _gaq = _gaq || [];
+    _gaq.push(['_setAccount', 'UA-58161548-1']);
+    _gaq.push(['_trackPageview']);
+
+    (function() {
+      var ga = document.createElement('script'); ga.type = 'text/javascript'; ga.async = true;
+      ga.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + 'stats.g.doubleclick.net/dc.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(ga, s);
+    })();
+  </script>
+
+
+</head>
+
+<body   >
+  <header role="banner"><hgroup>
+  <h1><a href="/">re:inventing the wheel</a></h1>
+  
+    <h2>それでも車輪は回っている</h2>
+  
+</hgroup>
+
+</header>
+  <nav role="navigation"><ul class="subscription" data-subscription="rss">
+  <li><a href="/atom.xml" rel="subscribe-rss" title="subscribe via RSS">RSS</a></li>
+  
+</ul>
+  
+<form action="https://www.google.com/search" method="get">
+  <fieldset role="search">
+    <input type="hidden" name="q" value="site:marmotte.pyrites.jp" />
+    <input class="search" type="text" name="q" results="0" placeholder="Search"/>
+  </fieldset>
+</form>
+  
+<ul class="main-navigation">
+  <li><a href="/">Blog</a></li>
+  <li><a href="/blog/archives">Archives</a></li>
+</ul>
+
+</nav>
+  <div id="main">
+    <div id="content">
+      <div>
+<article class="hentry" role="article">
+  
+  <div class="sharing">
+  <a href="http://b.hatena.ne.jp/entry/http://marmotte.pyrites.jp/blog/2015/10/17/build-for-nginx-plus-lua/" class="hatena-bookmark-button" data-hatena-bookmark-layout="standard" title="このエントリーをはてなブックマークに追加"><img src="http://b.st-hatena.com/images/entry-button/button-only.gif" alt="このエントリーをはてなブックマークに追加" width="20" height="20" style="border: none;" /></a><script type="text/javascript" src="http://b.st-hatena.com/js/bookmark_button.js" charset="utf-8" async="async"></script>
+  
+  <a href="http://twitter.com/share" class="twitter-share-button" data-url="http://marmotte.pyrites.jp/blog/2015/10/17/build-for-nginx-plus-lua/" data-via="marmotte_se30" data-counturl="http://marmotte.pyrites.jp/blog/2015/10/17/build-for-nginx-plus-lua/" >Tweet</a>
+  
+  
+  <div class="g-plusone" data-size="medium"></div>
+  
+  
+  <div class="fb-like" data-send="true" data-width="450" data-show-faces="false"></div>
+  
+</div>
+
+  
+  
+  <header>
+    
+      <h1 class="entry-title">Lua-nginx-module(ngx_lua)をインストールしてみた</h1>
+    
+    
+      <p class="meta">
+        
+
+
+
+
+<time class='entry-date' datetime='2015-10-17T19:06:27+09:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>17</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>7:06 pm</span></time>
+        
+      </p>
+    
+  </header>
+
+
+<div class="entry-content"><p>NGINXといえば軽量・高速なWebサーバですが、動的に設定反映できるリバプロはないかと探しているうちに
+<a href="http://www.slideshare.net/toshi_pp/devsummit2015">サイボウズ 深谷さんのスライド</a>を見つけ
+Luaモジュールの存在を知ることになりました。</p>
+
+<!-- more -->
+
+
+<p>いろいろ試してからエントリーしたかったのですが、まとまった検証時間が取れていないため、今回は
+(即出の記事もありますが)インストールしてみたと題してお茶を濁そうかと思います。<br>
+(実際にはいろいろなディレクティブが用意されているのでちゃんと調べたいのですが、、、)</p>
+
+<h2>とりあえず、インストールしてみよう</h2>
+
+<p>ngx_luaはサードパーティモジュールのため、利用するにはNGINXをソースからビルドする必要があります。
+なお、<a href="https://www.nginx.com/resources/wiki/modules/lua/">オフィシャル</a>にも書いてありますが、今回導入したv0.9.15では以下のバージョンをフォローしているようです。</p>
+
+<ul>
+<li>1.7.x (last tested: 1.7.10)</li>
+<li>1.6.x</li>
+<li>1.5.x (last tested: 1.5.12)</li>
+<li>1.4.x (last tested: 1.4.4)</li>
+<li>1.3.x (last tested: 1.3.11)</li>
+<li>1.2.x (last tested: 1.2.9)</li>
+<li>1.1.x (last tested: 1.1.5)</li>
+<li>1.0.x (last tested: 1.0.15)</li>
+<li>0.9.x (last tested: 0.9.4)</li>
+<li>0.8.x >= 0.8.54 (last tested: 0.8.54)</li>
+</ul>
+
+
+<h3>必要なもの</h3>
+
+<p>オフィシャルページには以下のように書かれています。</p>
+
+<ol>
+<li>Install LuaJIT 2.0 or 2.1 (recommended) or Lua 5.1 (Lua 5.2 is not supported yet). LuaJIT can be downloaded from the <a href="http://luajit.org/download.html">the LuaJIT project</a> website and Lua 5.1, from the <a href="http://www.lua.org/">Lua project</a> website. Some distribution package managers also distribute LuajIT and/or Lua.</li>
+<li>Download the latest version of the ngx_devel_kit (NDK) module <a href="https://github.com/simpl/ngx_devel_kit/tags">here</a></li>
+<li>Download the latest version of ngx_lua <a href="https://github.com/openresty/lua-nginx-module/tags">here</a></li>
+<li>Download the latest version of NGINX <a href="http://nginx.org/?_ga=1.74399378.1616584518.1442907851">here</a>.</li>
+</ol>
+
+
+<p>あれ？&hellip; latest version of NGINX??<br>
+とりあえず、今回は1.7系からの最新stableの1.8を利用。またLuaはJIT 2.0系を使用してみました。</p>
+
+<h3>ダウンロード</h3>
+
+<p>今回は、tar.gzファイルを <code>/usr/local/src</code> にダウンロード・展開して作業を行いました。</p>
+
+<p><a href="http://luajit.org/download.html">LuaJIT</a> ※JIT 2.0系を使用</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># wget http://luajit.org/download/LuaJIT-2.0.4.tar.gz</span></code></pre></td></tr></table></div></figure>
+
+
+<p><a href="https://github.com/simpl/ngx_devel_kit/tags">ngx_devel_kit</a></p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># wget https://github.com/simpl/ngx_devel_kit/archive/v0.2.19.tar.gz</span></code></pre></td></tr></table></div></figure>
+
+
+<p><a href="https://github.com/openresty/lua-nginx-module/tags">lua-nginx-module</a></p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># wget https://github.com/openresty/lua-nginx-module/archive/v0.9.16.tar.gz</span></code></pre></td></tr></table></div></figure>
+
+
+<p><a href="http://nginx.org/en/download.html">NGINX</a></p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># wget http://nginx.org/download/nginx-1.8.0.tar.gz</span></code></pre></td></tr></table></div></figure>
+
+
+<h3>インストール</h3>
+
+<p>まずは、LuaJITをインストールします。
+デフォルトでは <code>/usr/local</code> 以下にインストールされます。
+インストール先をを変更する場合は、<code>make PREFIX=/home/myself/lj2</code> とPREFIXオプションを設定します。
+ここでは、デフォルトのパスにインストールしました。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># tar xvzf LuaJIT-2.0.4.tar.gz
+</span><span class='line'># cd LuaJIT-2.0.4
+</span><span class='line'># make && make install</span></code></pre></td></tr></table></div></figure>
+
+
+<p>続いて、NGINXのビルド時に必要となるライブラリをyumからインストールします。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># yum install pcre-devel zlib-devel openssl-devel
+</span></code></pre></td></tr></table></div></figure>
+
+
+<p>ここからが、lua-nginx-moduleのインストールとなります。
+ngx_devel_kitとlua-nginx-moduleは展開するだけで、NGINXビルド時にadd-moduleオプションでパスを指定します。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+<span class='line-number'>18</span>
+<span class='line-number'>19</span>
+<span class='line-number'>20</span>
+<span class='line-number'>21</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># # ngx_devel_kit-0.2.19の展開
+</span><span class='line'># tar xvzf v0.2.19.tar.gz
+</span><span class='line'>
+</span><span class='line'># # lua-nginx-module-0.9.16の展開
+</span><span class='line'># tar xvzf v0.9.16.tar.gz
+</span><span class='line'>
+</span><span class='line'># # nginx-1.8.0の展開、make
+</span><span class='line'># tar xvzf nginx-1.8.0.tar.gz
+</span><span class='line'># cd nginx-1.8.0
+</span><span class='line'>
+</span><span class='line'># # NGINXビルドのために、LuaJITの環境変数を設定
+</span><span class='line'># export LUAJIT_LIB=/usr/local/lib
+</span><span class='line'># export LUAJIT_INC=/usr/local/include/luajit-2.0
+</span><span class='line'>
+</span><span class='line'># # NGINXビルド&インストール
+</span><span class='line'># ./configure \
+</span><span class='line'>  --with-ld-opt="-Wl,-rpath,/usr/local/lib" \
+</span><span class='line'>  --add-module=/usr/local/src/ngx_devel_kit-0.2.19 \
+</span><span class='line'>  --add-module=/usr/local/src/lua-nginx-module-0.9.16
+</span><span class='line'>
+</span><span class='line'># make -j2 && make install</span></code></pre></td></tr></table></div></figure>
+
+
+<h2>とりあえず動作テスト</h2>
+
+<p>とりあえず、以上でlua-nginx-module入りのNGINXインストールは完了したので動作テストを行います。
+ここではブラウザ画面に &ldquo;Hello, ngx_lua World!&#8221;と表示させるだけのシンプルな設定だけ試してみました。</p>
+
+<p>locationを <code>nginx.conf</code> に以下の設定を追加しました。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'>    location /hello {
+</span><span class='line'>        # MIME type determined by default_type:
+</span><span class='line'>        default_type 'text/plain';
+</span><span class='line'>
+</span><span class='line'>        content_by_lua "ngx.say('Hello, ngx_lua World!')";
+</span><span class='line'>    }</span></code></pre></td></tr></table></div></figure>
+
+
+<p>NGINXを起動し、curlで動作確認をします。</p>
+
+<figure class='code'><div class="highlight"><table><tr><td class="gutter"><pre class="line-numbers"><span class='line-number'>1</span>
+<span class='line-number'>2</span>
+<span class='line-number'>3</span>
+<span class='line-number'>4</span>
+<span class='line-number'>5</span>
+<span class='line-number'>6</span>
+<span class='line-number'>7</span>
+<span class='line-number'>8</span>
+<span class='line-number'>9</span>
+<span class='line-number'>10</span>
+<span class='line-number'>11</span>
+<span class='line-number'>12</span>
+<span class='line-number'>13</span>
+<span class='line-number'>14</span>
+<span class='line-number'>15</span>
+<span class='line-number'>16</span>
+<span class='line-number'>17</span>
+</pre></td><td class='code'><pre><code class=''><span class='line'># /usr/local/nginx/sbin/nginx
+</span><span class='line'># curl -v http://localhost/hello
+</span><span class='line'>* Connected to localhost (127.0.0.1) port 80 (#0)
+</span><span class='line'>&gt; GET /hello HTTP/1.1
+</span><span class='line'>&gt; User-Agent: curl/7.29.0
+</span><span class='line'>&gt; Host: localhost
+</span><span class='line'>&gt; Accept: */*
+</span><span class='line'>&gt;
+</span><span class='line'>&lt; HTTP/1.1 200 OK
+</span><span class='line'>&lt; Server: nginx/1.8.0
+</span><span class='line'>&lt; Date: Sat, 17 Oct 2015 09:35:12 GMT
+</span><span class='line'>&lt; Content-Type: text/plain
+</span><span class='line'>&lt; Transfer-Encoding: chunked
+</span><span class='line'>&lt; Connection: keep-alive
+</span><span class='line'>&lt;
+</span><span class='line'>Hello, ngx_lua World!
+</span><span class='line'>* Connection #0 to host localhost left intact</span></code></pre></td></tr></table></div></figure>
+
+
+<p>うまく動きました!!</p>
+
+<h2>最後に&hellip;</h2>
+
+<p>今回は、ngx_luaを動かすための最低限configureでビルドしました。なので必要に応じてモジュールは
+追加する必要があります。
+普段はNGINXの<a href="https://www.nginx.com/resources/wiki/start/topics/tutorials/install/">オフィシャルレポジトリ</a>
+からのパッケージ版インストールばかりでしたのでNGINXのconfigureには疎いですが、パッケージ版から <code>nginx -V</code> などして確認すると良いかもしれません。</p>
+
+<p>また、<a href="https://www.nginx.com/resources/wiki/modules/">NGINX 3rd Party Modules</a>を見ると色々なモジュールが提供されていますので、
+機会があれば触ってみたいと思います。</p>
+
+<p>以上</p>
+</div>
+
+
+  <footer>
+    <p class="meta">
+      
+  
+
+<span class="byline author vcard">Posted by <span class="fn">Yosuke Yamamoto</span></span>
+
+      
+
+
+
+
+<time class='entry-date' datetime='2015-10-17T19:06:27+09:00'><span class='date'><span class='date-month'>Oct</span> <span class='date-day'>17</span><span class='date-suffix'>th</span>, <span class='date-year'>2015</span></span> <span class='time'>7:06 pm</span></time>
+      
+
+<span class="categories">
+  
+    <a class='category' href='/blog/categories/nginx/'>nginx</a>
+  
+</span>
+
+
+    </p>
+    <p class="meta">
+      
+        <a class="basic-alignment left" href="/blog/2015/10/06/webvirtmgr-in-raspberrypi/" title="Previous Post: (DIY)RaspbianにWebVirtMgrを入れてみた">&laquo; (DIY)RaspbianにWebVirtMgrを入れてみた</a>
+      
+      
+    </p>
+  </footer>
+</article>
+
+</div>
+
+<aside class="sidebar">
+  
+    
+<section>
+  <!--
+  // Octopress custom aside 'gravatar.html'
+  // version: 1.0 (Dec 24, 2013)
+  // (c) alalwww [https://github.com/alalwww/gravatar-aside/]
+-->
+<h1>Author</h1>
+<div id="gravatar-aside-profile" style="clear:both">
+  <div style="height:2em"><span style="color:#ccc;font-size:small">loading profile from gravatar&#8230;</span></div>
+</div>
+<div style="clear:both"></div>
+<script type="text/javascript">
+$(function(){
+  var url = "http://www.gravatar.com/cdd605858f695128532412f701153985.json?callback=?";
+  var $box = $("#gravatar-aside-profile")
+  var $msg = $box.children().children()
+  var blink = function(a){a.fadeOut(400).fadeIn(400)};
+  var intervalID = window.setInterval(blink, 1500, $msg)
+  var setupProfile = function(data) {
+    var entry = data.entry[0]
+    $box
+    .empty()
+    .css("padding-top", 5)
+    .append($("<img>")
+    .attr("src", entry.thumbnailUrl)
+    .attr("alt", "thumbnail from Gravatar")
+    .css("float", "left")
+    .css("margin-right", 5)
+  )
+  .append($("<div>")
+  .css("padding", "5px 0px")
+  .append($("<h2>")
+  .css("margin-bottom", 5)
+  .append("<a href='" + entry.profileUrl + "'>" + entry.displayName + "</a>")
+)
+.append($("<div>")
+.css("clear", "both")
+.css("margin", 0)
+.css("font-size", "90%")
+.html(entry.aboutMe.replace(/\n/g, "<br/>"))
+)
+)
+}
+var clearInterval = function(){window.clearInterval(intervalID)}
+var updateMessageToError = function(){$msg.stop().fadeOut().text("profile load failed.").fadeIn()}
+jQuery.getJSON(url)
+.always(clearInterval)
+.done(setupProfile)
+.fail(updateMessageToError)
+})
+</script>
+</section>
+
+<section>
+  <script async src="//pagead2.googlesyndication.com/pagead/js/adsbygoogle.js"></script>
+  <!-- octppress a-side -->
+  <ins class="adsbygoogle"
+  style="display:inline-block;width:300px;height:250px"
+  data-ad-client="ca-pub-6654532477291148"
+  data-ad-slot="7834979110"></ins>
+  <script>
+    (adsbygoogle = window.adsbygoogle || []).push({});
+  </script>
+</section>
+<section>
+  <h1>Recent Posts</h1>
+  <ul id="recent_posts">
+    
+      <li class="post">
+        <a href="/blog/2015/10/17/build-for-nginx-plus-lua/">Lua-nginx-module(ngx_lua)をインストールしてみた</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2015/10/06/webvirtmgr-in-raspberrypi/">(DIY)RaspbianにWebVirtMgrを入れてみた</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2015/02/23/setting-up-authentication-for-docker-registry/">docker-registryによるプライベートDockerリポジトリの作成</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2015/02/06/convert-markdown-to-word-document/">MarkdownのファイルをWord書類に変換する</a>
+      </li>
+    
+      <li class="post">
+        <a href="/blog/2015/01/15/create-docker-image-of-centos7/">CentOS7のDocker Imageを自作する</a>
+      </li>
+    
+  </ul>
+</section>
+<section>
+  <h1>Top Categories</h1>
+    <ul id="top-category-list"><li><a href='/blog/categories/macosx'>macosx (5)</a></li><li><a href='/blog/categories/centos'>centos (3)</a></li><li><a href='/blog/categories/docker'>docker (3)</a></li><li><a href='/blog/categories/octopress'>octopress (2)</a></li><li><a href='/blog/categories/sofalseta'>その他 (1)</a></li><li><a href='/blog/categories/diy'>diy (1)</a></li><li><a href='/blog/categories/kvm'>kvm (1)</a></li><li><a href='/blog/categories/vagrant'>vagrant (1)</a></li><li><a href='/blog/categories/nginx'>nginx (1)</a></li><li><a href='/blog/categories/idea'>idea (1)</a></li></ul>
+</section>
+
+<section>
+  <h1>GitHub Repos</h1>
+  <ul id="gh_repos">
+    <li class="loading">Status updating&#8230;</li>
+  </ul>
+  
+  <a href="https://github.com/marmotte">@marmotte</a> on GitHub
+  
+  <script type="text/javascript">
+    $(document).ready(function(){
+        if (!window.jXHR){
+            var jxhr = document.createElement('script');
+            jxhr.type = 'text/javascript';
+            jxhr.src = '/javascripts/libs/jXHR.js';
+            var s = document.getElementsByTagName('script')[0];
+            s.parentNode.insertBefore(jxhr, s);
+        }
+
+        github.showRepos({
+            user: 'marmotte',
+            count: 0,
+            skip_forks: true,
+            target: '#gh_repos'
+        });
+    });
+  </script>
+  <script src="/javascripts/github.js" type="text/javascript"> </script>
+</section>
+
+
+
+<section class="googleplus googleplus-hidden">
+  <h1>
+    <a href="https://plus.google.com/112708436664585883078?rel=author">
+      <img src="http://www.google.com/images/icons/ui/gprofile_button-32.png" width="32" height="32">
+      Google+
+    </a>
+  </h1>
+</section>
+
+
+
+  
+</aside>
+
+
+    </div>
+  </div>
+  <footer role="contentinfo"><p>
+  Copyright &copy; 2018 - Yosuke Yamamoto -
+  <span class="credit">Powered by <a href="http://octopress.org">Octopress</a></span>
+</p>
+
+</footer>
+  
+
+
+
+<div id="fb-root"></div>
+<script>(function(d, s, id) {
+  var js, fjs = d.getElementsByTagName(s)[0];
+  if (d.getElementById(id)) {return;}
+  js = d.createElement(s); js.id = id; js.async = true;
+  js.src = "//connect.facebook.net/ja_JP/all.js#appId=212934732101925&xfbml=1";
+  fjs.parentNode.insertBefore(js, fjs);
+}(document, 'script', 'facebook-jssdk'));</script>
+
+
+
+  <script type="text/javascript">
+    (function() {
+      var script = document.createElement('script'); script.type = 'text/javascript'; script.async = true;
+      script.src = 'https://apis.google.com/js/plusone.js';
+      var s = document.getElementsByTagName('script')[0]; s.parentNode.insertBefore(script, s);
+    })();
+  </script>
+
+
+
+  <script type="text/javascript">
+    (function(){
+      var twitterWidgets = document.createElement('script');
+      twitterWidgets.type = 'text/javascript';
+      twitterWidgets.async = true;
+      twitterWidgets.src = '//platform.twitter.com/widgets.js';
+      document.getElementsByTagName('head')[0].appendChild(twitterWidgets);
+    })();
+  </script>
+
+
+
+
+
+</body>
+</html>

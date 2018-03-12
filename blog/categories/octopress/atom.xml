@@ -1,0 +1,247 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Octopress | re:inventing the wheel]]></title>
+  <link href="http://marmotte.pyrites.jp/blog/categories/octopress/atom.xml" rel="self"/>
+  <link href="http://marmotte.pyrites.jp/"/>
+  <updated>2018-03-12T12:29:41+09:00</updated>
+  <id>http://marmotte.pyrites.jp/</id>
+  <author>
+    <name><![CDATA[Yosuke Yamamoto]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Octopress備忘録(2) 記事の投稿]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2014/12/29/octopress-new-post/"/>
+    <updated>2014-12-29T14:25:01+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2014/12/29/octopress-new-post</id>
+    <content type="html"><![CDATA[<p><a href="http://marmotte.pyrites.jp/blog/2014/12/29/octopress-1st-setup/">前回</a>、GitHub Page + Octopressの環境を構築してみました。
+今回は記事の投稿方法についてメモを残します。</p>
+
+<!-- more -->
+
+
+<h3>記事の作成</h3>
+
+<p>以下のコマンドにより記事を作成できます。</p>
+
+<pre><code>$ bundle exec rake new_post['post title']
+</code></pre>
+
+<p>rake new_postの引数 <code>post title</code> はURLでも利用するため必ず<strong><em>半角英字</em></strong>にする必要があります。</p>
+
+<p>実行すると、octopressのリポジトリ内の <code>source/_posts/YYYY-MM-DD-post-title.markdown</code> というファイルが作成されます。</p>
+
+<p>作成されたファイルの内容は以下のようになります。</p>
+
+<pre><code>---
+layout: post
+title: "post title"
+date: 2014-12-29 14:25:01 +0900
+comments: true
+categories:
+---
+</code></pre>
+
+<h3>記事タイトルの日本語化</h3>
+
+<p>先にも書きましたが、rake new_postコマンドの引数はmarkdownファイル生成のコマンドのため日本語は利用できません。
+日本語のタイトルを利用したい場合、生成されたファイルの <code>title:</code>の項目を編集します。</p>
+
+<pre><code>---
+layout: post
+title: "初めての記事"
+date: 2014-12-29 14:25:01 +0900
+comments: true
+categories:
+---
+</code></pre>
+
+<h3>記事カテゴリの設定</h3>
+
+<p>記事のカテゴリ設定は、<code>categories:</code>に配列で記述します。</p>
+
+<pre><code>---
+layout: post
+title: "初めての記事"
+date: 2014-12-29 14:25:01 +0900
+comments: true
+categories: ['カテゴリー1', ('カテゴリー2'...)]
+---
+</code></pre>
+
+<h3>記事本文の記述</h3>
+
+<p>記事本文は、rake new_postで作成された情報の末尾にmarkdown形式で記述していきます。</p>
+
+<h3>記事のプレビュー</h3>
+
+<p>作成した記事をGitHubに登録する前に下記のコマンドでプレビューすることができます。</p>
+
+<pre><code>$ bundle exec rake preview
+</code></pre>
+
+<p>実行すると、<a href="http://localhost:4000">http://localhost:4000</a> にブラウザでアクセスすることで記事の内容が確認できます。</p>
+
+<h3>記事の投稿</h3>
+
+<p>作成した記事を投稿するには以下のコマンドで登録できます。</p>
+
+<pre><code>$ bundle exec rake gen_deploy
+</code></pre>
+
+<p>なお、<code>rake gen_deploy</code>は下記のコマンドの実行と同等です。</p>
+
+<pre><code>$ bundle exec rake generate
+$ bundle exec rake deploy
+</code></pre>
+
+<h3>編集したファイルは origin/sourceへ</h3>
+
+<p>つい忘れがちですが、せっかくGitHub Pageを利用しているので記事のソースや編集した設定ファイルはこまめにリポジトリにpushしましょう。</p>
+
+<pre><code>$ git add .
+$ git commit -m 'your message'
+$ git push origin source
+</code></pre>
+
+<h3>その他</h3>
+
+<p>Octopressの記事フォーマットは、markdown(MD)と呼ばれる記法を使用します。
+GitHub主軸の開発者であればおなじみの記法ですが、私もよく忘れるのでいつも参考しているサイトを紹介いたします。</p>
+
+<ul>
+<li><a href="http://kojika17.com/2013/01/starting-markdown.html">文章作成やメモ書きにも便利、Markdown記法</a></li>
+<li><a href="http://www.markdown.jp/">日本語Markdownユーザー会</a></li>
+<li><a href="http://qiita.com/Qiita/items/c686397e4a0f4f11683d">Markdown記法 チートシート</a></li>
+</ul>
+
+
+<p>※ちなみに、Octopress用のエディタは<a href="https://atom.io">Atom</a>を利用しています。
+GitHub謹製なのでMDのプレビュー機能やコミットされていないファイルがハイライトされるなどちょっと便利な機能が魅力です。</p>
+
+<hr />
+
+<p>とりあえず、今回は以上。</p>
+]]></content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Octopress備忘録(1) インストール編]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2014/12/29/octopress-1st-setup/"/>
+    <updated>2014-12-29T13:19:03+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2014/12/29/octopress-1st-setup</id>
+    <content type="html"><![CDATA[<p>今更ですが、MD記法でブログを書きたいと思い立ち<a href="http://d.hatena.ne.jp/marmotte/">はてなブログ</a>から乗り換えのため、
+Octopressを始めてみました。<br/>
+手始めとして、GitHub Pages + Octopressの設定メモを残します。</p>
+
+<!-- more -->
+
+
+<h3>GitHub Pages用のGitHubレポジトリの作成</h3>
+
+<p><a href="https://help.github.com/articles/what-are-github-pages">GitHub Pages</a>は、WebページをGitHub上で無料でホスティングするサービスです。
+サイトを立ち上げるには、専用の<code>username.github.io</code>のリポジトリを作成する必要があります。</p>
+
+<p>作成はGitHubのアカウントホーム画面の右ペインの「Your repositories」から、<code>+ New repository</code>ボタンをクリックしPublicリポジトリを作成します。
+私の場合、GitHubアカウントは&#8221;marmotte&#8221;なので、リポジトリ名は<code>marmotte.github.io</code>となります。</p>
+
+<p><img src="/images/create_github_repo.png" alt="Creaet GitHub Pages Repository" /></p>
+
+<h3>Octopressの準備</h3>
+
+<p>細かい話は、<a href="http://octopress.org">Octopressのオフィシャルページ</a>を見ていただきたいのですが、コマンドだけまとめると以下になります。</p>
+
+<p>※Octopressを利用するにはrubyの実行環境が必要なため、私はrbenvを利用しています。</p>
+
+<ul>
+<li><a href="http://octopress.org/docs/setup/">セットアップ編</a></li>
+</ul>
+
+
+<p>octopressのソースをクローンし、gemなど必要な環境をインストールします。</p>
+
+<pre><code>$ git clone git://github.com/imathis/octopress.git octopress
+$ cd octopress
+
+$ gem install bundler
+$ rbenv rehash
+$ bundle install
+
+$ bundle exec rake install
+</code></pre>
+
+<ul>
+<li><a href="http://octopress.org/docs/deploying/github/">GitHub Pagesデプロイ編</a></li>
+</ul>
+
+
+<p>GitHubページのセットアップを行います。</p>
+
+<pre><code>$ bundle exec rake setup_github_pages
+Enter the read/write url for your repository
+(For example, 'git@github.com:your_username/your_username.github.io.git)
+or 'https://github.com/your_username/your_username.github.io')
+Repository url: git@github.com:marmotte/marmotte.github.io.git
+Added remote git@github.com:marmotte/marmotte.github.io.git as origin
+Set origin as default remote
+Master branch renamed to 'source' for committing your blog source files
+rm -rf _deploy
+mkdir _deploy
+cd _deploy
+Initialized empty Git repository in /path/to/local-repo/octopress/_deploy/.git/
+[master (root-commit) f5c9b53] Octopress init
+1 file changed, 1 insertion(+)
+create mode 100644 index.html
+cd -
+
+---
+## Now you can deploy to git@github.com:marmotte/marmotte.github.io.git with `rake deploy` ##
+</code></pre>
+
+<pre><code>$ bundle exec rake generate
+$ bundle exec rake deploy
+
+$ git add .
+$ git commit -m 'your message'
+$ git push origin source
+</code></pre>
+
+<ul>
+<li><a href="http://octopress.org/docs/configuring/">Octopressの設定編</a></li>
+</ul>
+
+
+<p>_config.yml ファイルに手を加えるわけですが、とりあえず私が設定した項目は以下になります。</p>
+
+<pre><code>url:                # For rewriting urls for RSS, etc
+title:              # Used in the header and title tags
+subtitle:           # A description used in the header
+author:             # Your name, for RSS, Copyright, Metadata
+github_user:        # List your github repositories in the sidebar(3rd Party Setting)
+twitter_user:       # Add a button for sharing of posts and pages on Twitter(3rd Party Setting)
+facebook_like: true # Add a Facebook like button(3rd Party Setting)
+</code></pre>
+
+<p>設定後、下記コマンドを実行しGitHub Pagesに反映させます。</p>
+
+<pre><code>$ bundle exec rake gen_deploy
+</code></pre>
+
+<p>また、編集したファイルなどをGitリポジトリに保存するには以下のコマンドを実行します。</p>
+
+<pre><code>$ git add .
+$ git commit -m 'your message'
+$ git push origin source
+</code></pre>
+
+<hr />
+
+<p>細かな設定は他にもあると思いますが、一旦ここまでにしておきます。</p>
+]]></content>
+  </entry>
+  
+</feed>

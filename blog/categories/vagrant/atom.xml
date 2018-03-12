@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+
+  <title><![CDATA[Category: Vagrant | re:inventing the wheel]]></title>
+  <link href="http://marmotte.pyrites.jp/blog/categories/vagrant/atom.xml" rel="self"/>
+  <link href="http://marmotte.pyrites.jp/"/>
+  <updated>2018-03-12T12:29:41+09:00</updated>
+  <id>http://marmotte.pyrites.jp/</id>
+  <author>
+    <name><![CDATA[Yosuke Yamamoto]]></name>
+    
+  </author>
+  <generator uri="http://octopress.org/">Octopress</generator>
+
+  
+  <entry>
+    <title type="html"><![CDATA[Vagrant 1.7.1導入したら若干不具合が発生したのでメモ]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2015/01/03/the-problems-caused-by-updates-to-vagrant1-dot-7-1/"/>
+    <updated>2015-01-03T17:43:55+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2015/01/03/the-problems-caused-by-updates-to-vagrant1-dot-7-1</id>
+    <content type="html"><![CDATA[<p>気がつけばVagrantのStableが1.7.1になっていたので導入してみたのですが、自分にとって若干不具合があったので
+対策をメモしておきます。</p>
+
+<!-- more -->
+
+
+<h3>sshコマンドでVagrantBoxに接続できない</h3>
+
+<p>chef-soloの動作確認などのために、<code>vagrant ssh</code>だけではなく普通のsshコマンドで接続できるよう<code>$HOME/.ssh/config</code>に下記のような設定を記述していたのですが、
+アップデートによりIdentityFileで接続できなくなってしまいました。</p>
+
+<pre><code>Host vagrant
+Hostname        192.168.33.10
+User            vagrant
+IdentityFile    ~/.vagrant.d/insecure_private_key
+StrictHostKeyChecking no
+</code></pre>
+
+<p>これまでは、IdentityFileを指定しているので鍵交換方式で接続できたのですが、以下のようにPasswordを求められるようになってしまいました。<br/>
+ちなみに、<code>vagrant ssh</code>では問題なく接続できます。</p>
+
+<pre><code>$ vagrant up
+$ ssh vagrant
+Password:
+</code></pre>
+
+<p>原因は、1.7よりデフォルトで$HOME/.vagrant.d/insecure_private_key を参照しなくなったようです。<code>vagrant ssh-config</code>コマンドで確認すると、Vagrantfileと同一ディレクトリに.vagrant/machines/default/virtualbox/private_keyとして自動生成されていました。</p>
+
+<p>対策としては、<code>Vagrantfile</code>に以下の設定を追加することで回避できます。</p>
+
+<pre><code>config.ssh.insert_key = false
+</code></pre>
+
+<p>参考：<a href="https://github.com/geerlingguy/ansible-for-devops/issues/7">https://github.com/geerlingguy/ansible-for-devops/issues/7</a></p>
+
+<h3>自作VagrantBox作成時にpackageでこける</h3>
+
+<p>VagrantBoxを作成すべく<code>vagrant package</code>コマンドを実行すると、下記のようなargumentsエラーが発生しました。</p>
+
+<pre><code>$ vagrant package --base vagrant-centos7
+/opt/vagrant/embedded/gems/gems/vagrant-1.7.1/lib/vagrant/machine.rb:153:in `action': wrong number of arguments (2 for 1) (ArgumentError)
+from /opt/vagrant/embedded/gems/gems/vagrant-1.7.1/plugins/commands/package/command.rb:83:in `package_vm'
+from /opt/vagrant/embedded/gems/gems/vagrant-1.7.1/plugins/commands/package/command.rb:66:in `package_base'
+from /opt/vagrant/embedded/gems/gems/vagrant-1.7.1/plugins/commands/package/command.rb:42:in `execute'
+from /opt/vagrant/embedded/gems/gems/vagrant-1.7.1/lib/vagrant/cli.rb:42:in `execute'
+from /opt/vagrant/embedded/gems/gems/vagrant-1.7.1/lib/vagrant/environment.rb:301:in `cli'
+from /opt/vagrant/bin/../embedded/gems/gems/vagrant-1.7.1/bin/vagrant:174:in `&lt;main&gt;'
+</code></pre>
+
+<p>対策としては、<code>/opt/vagrant/embedded/gems/gems/vagrant-1.7.1/lib/vagrant/machine.rb</code>の153行目を以下のように修正します。</p>
+
+<pre><code>-     def action(name, **opts)
++     def action(name, opts)
+</code></pre>
+
+<p>参考：<a href="https://github.com/mitchellh/vagrant/issues/4962">https://github.com/mitchellh/vagrant/issues/4962</a></p>
+
+<hr />
+
+<p>以上、1.7.1へバージョンアップしたら(今の所)出くわした問題と対処方法でした。</p>
+]]></content>
+  </entry>
+  
+</feed>
