@@ -1,6 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9 http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd" xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 <url>
+<loc>http://marmotte.pyrites.jp/blog/2018/03/14/site-closure-notice-dot-md/</loc>
+<lastmod>2018-03-14T12:29:33+09:00</lastmod>
+</url>
+<url>
 <loc>http://marmotte.pyrites.jp/blog/2015/10/17/build-for-nginx-plus-lua/</loc>
 <lastmod>2015-10-17T19:06:27+09:00</lastmod>
 </url>
@@ -89,8 +93,5 @@
 </url>
 <url>
 <loc>http://marmotte.pyrites.jp/blog/categories/nginx/</loc>
-</url>
-<url>
-<loc>http://marmotte.pyrites.jp/posts/2/</loc>
 </url>
 </urlset>

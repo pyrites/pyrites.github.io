@@ -4,7 +4,7 @@
   <title><![CDATA[re:inventing the wheel]]></title>
   <link href="http://marmotte.pyrites.jp/atom.xml" rel="self"/>
   <link href="http://marmotte.pyrites.jp/"/>
-  <updated>2018-03-12T12:29:41+09:00</updated>
+  <updated>2018-03-14T12:43:44+09:00</updated>
   <id>http://marmotte.pyrites.jp/</id>
   <author>
     <name><![CDATA[Yosuke Yamamoto]]></name>
@@ -12,6 +12,18 @@
   </author>
   <generator uri="http://octopress.org/">Octopress</generator>
 
+  
+  <entry>
+    <title type="html"><![CDATA[サイト閉鎖のお知らせ]]></title>
+    <link href="http://marmotte.pyrites.jp/blog/2018/03/14/site-closure-notice-dot-md/"/>
+    <updated>2018-03-14T12:29:33+09:00</updated>
+    <id>http://marmotte.pyrites.jp/blog/2018/03/14/site-closure-notice-dot-md</id>
+    <content type="html"><![CDATA[<h2>ドメイン<code>pyrites.jp</code>の廃止に伴い、本ブログサイトを閉鎖いたします</h2>
+
+<p>長らく更新も途絶えていたため、ドメイン廃止と合わせ本ブログも2018/3/17を持って閉鎖させていただきます。
+なお、心機一転<a href="http://blog.eksy.tokyo">新ブログ(re:inventing the wheel)</a>を立ち上げましたのでご覧いただければ幸いです。</p>
+]]></content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Lua-nginx-module(ngx_lua)をインストールしてみた]]></title>
